@@ -101,6 +101,7 @@ button:disabled{opacity:.35;cursor:not-allowed}
 .viz-wrap{position:relative;margin-top:14px;border:1px solid var(--line);border-radius:4px;background:
   linear-gradient(180deg,rgba(255,255,255,.015),transparent),var(--bg)}
 #viz{display:block;width:100%;height:110px}
+.viz-wrap.fill #viz{position:absolute;inset:0;height:100%}
 .viz-wrap .tag{position:absolute;top:8px;right:8px;background:rgba(6,8,11,.7)}
 .ctrl{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;margin-top:14px}
 .transport{display:flex;gap:6px;align-items:center}
@@ -172,6 +173,46 @@ input[type=text]{font:12px var(--mono);padding:7px 10px;border-radius:4px;border
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;font:600 12px var(--mono);
   background:var(--panel2);border:1px solid var(--acc);color:var(--text);padding:8px 14px;border-radius:4px;transition:.2s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%)}
+.foot{display:flex;align-items:center;gap:12px;margin-top:12px;font:600 10.5px var(--mono);letter-spacing:.06em;color:var(--muted)}
+.keys{display:flex;flex-wrap:wrap;gap:6px 18px}
+.keys span{display:inline-flex;align-items:center;gap:6px}
+.kbtn{cursor:pointer}
+.kbtn:hover{color:var(--acc)}
+kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);border:1px solid var(--line2);border-bottom-width:2px;border-radius:3px;padding:2px 6px;margin-right:2px}
+.logpanel{margin-top:12px}
+@media (hover:none){ .foot{display:none} }
+
+/* ===== Полноэкранный пульт: широкий и достаточно высокий экран ===== */
+@media (min-width:1280px) and (min-height:720px){
+  body{height:100vh;overflow:hidden}
+  main{height:100vh;max-width:none;display:flex;flex-direction:column;padding:18px 24px 14px}
+  main > .panel:first-child{margin-bottom:12px!important;padding:12px 18px}
+  #controls{flex:1;min-height:0;grid-template-columns:2fr 1fr;grid-template-rows:minmax(0,1fr) auto;
+    grid-template-areas:'play nc' 'eq fn';align-items:stretch}
+  .a-play,.a-nc,.a-eq,.a-fn{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .a-fn{overflow:visible}
+  .a-fn .trow{padding:9px 0}
+  .a-eq .meter.v{max-height:none}
+  .viz-wrap{flex:1;min-height:90px}
+  .a-play .np{grid-template-columns:clamp(110px,14vh,190px) 1fr}
+  .a-play .cover{width:clamp(110px,14vh,190px);height:clamp(110px,14vh,190px)}
+  .a-play .cover svg{width:44px;height:44px}
+  .a-play .track{font-size:clamp(22px,3vh,34px)}
+  .a-play .tsub{font-size:clamp(13px,1.7vh,17px)}
+  .a-nc .modes{flex:1;min-height:90px}
+  .a-nc .mode{justify-content:center;font-size:12px}
+  .a-nc .mode svg{width:clamp(24px,4vh,40px);height:clamp(24px,4vh,40px)}
+  .a-nc .meter i{height:clamp(14px,2.4vh,24px)}
+  .a-eq .eq{flex:1;min-height:0;margin-top:14px}
+  .a-eq .eq > div{display:flex;flex-direction:column;min-height:0}
+  .a-eq .meter.v{flex:1;height:auto;min-height:100px;width:clamp(30px,3vw,46px)}
+  .foot{margin-top:10px;flex:none}
+  .logpanel{position:fixed;left:24px;right:24px;bottom:46px;z-index:20;margin:0;display:none;
+    box-shadow:0 -20px 60px rgba(0,0,0,.6)}
+  .logpanel.open{display:block}
+  .logpanel summary{display:none}
+  #log{height:min(40vh,380px)}
+}
 @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
 </style>
 </head>
@@ -195,6 +236,7 @@ input[type=text]{font:12px var(--mono);padding:7px 10px;border-radius:4px;border
         <button id="btnAll" title="Показать все порты без фильтра">Все порты</button>
         <button id="btnRefresh" disabled>Обновить</button>
         <button id="btnDisconnect" disabled>Отключить</button>
+        <button id="btnFull" title="Во весь экран (F)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       </div>
     </div>
     <div class="warn" id="warn"></div>
@@ -292,9 +334,15 @@ input[type=text]{font:12px var(--mono);padding:7px 10px;border-radius:4px;border
     </section>
   </div>
 
-  <!-- ===== Журнал ===== -->
-  <section class="panel span2" style="margin-top:12px">
-    <details>
+  <!-- ===== Нижняя строка: горячие клавиши + журнал ===== -->
+  <footer class="foot">
+    <div class="keys">
+      <span><kbd>Space</kbd>плей/пауза</span><span><kbd>←</kbd><kbd>→</kbd>трек</span><span><kbd>↑</kbd><kbd>↓</kbd>громкость</span>
+      <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>NC / Ambient / Off</span><span class="kbtn" id="kFull"><kbd>F</kbd>весь экран</span><span class="kbtn" id="kLog"><kbd>L</kbd>журнал</span>
+    </div>
+  </footer>
+  <section class="panel span2 logpanel" id="logPanel">
+    <details id="logDetails">
       <summary>05 // Журнал протокола</summary>
       <div class="row">
         <input type="text" id="raw" placeholder="hex, напр. 10 00">
@@ -911,6 +959,47 @@ if (!('serial' in navigator)){
   navigator.serial.addEventListener('connect', () => { if (!port) autoConnect(); });
   autoConnect();
 }
+// ================= Полный экран, журнал, горячие клавиши =================
+const wide = matchMedia('(min-width:1280px) and (min-height:720px)');
+function syncWide(){
+  document.querySelector('.viz-wrap').classList.toggle('fill', wide.matches);
+  if (!wide.matches) $('logPanel').classList.remove('open');
+}
+wide.addEventListener('change', syncWide); syncWide();
+function toggleLog(){
+  if (wide.matches){ const o = $('logPanel').classList.toggle('open'); if (o) $('logDetails').open = true; }
+  else { $('logDetails').open = !$('logDetails').open; if ($('logDetails').open) $('logPanel').scrollIntoView({ behavior:'smooth' }); }
+}
+function toggleFull(){
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => toast('Полный экран недоступен'));
+}
+$('btnFull').onclick = toggleFull;
+$('kFull').onclick = toggleFull;
+$('kLog').onclick = toggleLog;
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  const t = e.target;
+  if (t.matches('input, select, textarea') || (t.classList && t.classList.contains('meter'))) return;
+  const live = !!writer;
+  const k = e.key;
+  if (k === 'f' || k === 'F' || k === 'а' || k === 'А'){ e.preventDefault(); toggleFull(); return; }
+  if (k === 'l' || k === 'L' || k === 'д' || k === 'Д'){ e.preventDefault(); toggleLog(); return; }
+  if (k === 'Escape' && $('logPanel').classList.contains('open')){ $('logPanel').classList.remove('open'); return; }
+  if (!live) return;
+  if (k === ' ' && t.tagName !== 'BUTTON'){ e.preventDefault(); $('btnPlay').click(); }
+  else if (k === 'ArrowRight'){ e.preventDefault(); $('btnNext').click(); }
+  else if (k === 'ArrowLeft'){ e.preventDefault(); $('btnPrev').click(); }
+  else if (k === 'ArrowUp' || k === 'ArrowDown'){
+    e.preventDefault();
+    const v = volM.set(volM.value + (k === 'ArrowUp' ? 1 : -1));
+    $('volVal').textContent = v; clearTimeout(volTimer); volTimer = setTimeout(() => send([0xa8, 0x01, 0x20, v]), 120);
+  }
+  else if (k === '1' || k === '2' || k === '3'){
+    ui.mode = { '1':'nc', '2':'amb', '3':'off' }[k]; renderMode(); sendAsm(); toast(['NC','Ambient','Off'][+k-1]);
+  }
+});
+
 renderMode(); renderStc(); renderPlay();
 </script>
 </body>
