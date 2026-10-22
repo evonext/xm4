@@ -22,10 +22,22 @@ body{margin:0;color:var(--text);font:14px/1.45 "Segoe UI Variable","Segoe UI",sy
     repeating-linear-gradient(0deg, transparent 0 31px, rgba(255,255,255,.025) 31px 32px),
     repeating-linear-gradient(90deg, transparent 0 31px, rgba(255,255,255,.025) 31px 32px),
     var(--bg)}
-main{max-width:980px;margin:0 auto;padding:20px 16px 48px}
+main{max-width:1600px;margin:0 auto;padding:clamp(16px,2vw,32px) clamp(16px,2.5vw,40px) 48px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .span2{grid-column:1/-1}
 @media (max-width:780px){ .grid{grid-template-columns:1fr} }
+/* широкий экран: воспроизведение + шумодав сверху, эквалайзер + функции снизу */
+@media (min-width:1280px){
+  .grid{grid-template-columns:repeat(3,1fr);grid-template-areas:'play play nc' 'eq eq fn';align-items:start}
+  .a-play{grid-area:play} .a-nc{grid-area:nc} .a-eq{grid-area:eq} .a-fn{grid-area:fn}
+  .a-play,.a-nc{align-self:stretch}
+  #viz{height:clamp(120px,11vw,190px)}
+  .meter.v{height:clamp(160px,15vw,240px)}
+  .np{grid-template-columns:clamp(96px,8vw,128px) 1fr}
+  .cover{width:clamp(96px,8vw,128px);height:clamp(96px,8vw,128px)}
+  .track{font-size:clamp(19px,1.5vw,24px)}
+  .a-nc .mode{padding:22px 6px 18px}
+}
 .mono{font-family:var(--mono)}
 
 /* ---------- панели ---------- */
@@ -193,7 +205,7 @@ input[type=text]{font:12px var(--mono);padding:7px 10px;border-radius:4px;border
   <div id="controls" class="grid disabled">
 
     <!-- ===== Воспроизведение ===== -->
-    <section class="panel span2">
+    <section class="panel span2 a-play">
       <div class="ph"><b>01</b>Воспроизведение<span class="grow"></span></div>
       <div class="np">
         <div class="cover"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></svg><img id="coverImg" alt="" hidden></div>
@@ -224,7 +236,7 @@ input[type=text]{font:12px var(--mono);padding:7px 10px;border-radius:4px;border
     </section>
 
     <!-- ===== Шумоподавление ===== -->
-    <section class="panel">
+    <section class="panel a-nc">
       <div class="ph"><b>02</b>Шумоподавление<span class="grow"></span></div>
       <div class="modes" id="modes">
         <button class="mode" data-m="nc"><svg viewBox="0 0 24 24"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><rect x="2" y="14" width="5" height="7" rx="1.5"/><rect x="17" y="14" width="5" height="7" rx="1.5"/></svg>NC</button>
@@ -242,7 +254,7 @@ input[type=text]{font:12px var(--mono);padding:7px 10px;border-radius:4px;border
     </section>
 
     <!-- ===== Функции ===== -->
-    <section class="panel">
+    <section class="panel a-fn">
       <div class="ph"><b>03</b>Функции<span class="grow"></span></div>
       <div class="trow">
         <div class="t"><div>Speak-to-Chat</div><small>Пауза и прозрачный звук, когда говоришь</small></div>
@@ -273,7 +285,7 @@ input[type=text]{font:12px var(--mono);padding:7px 10px;border-radius:4px;border
     </section>
 
     <!-- ===== Эквалайзер ===== -->
-    <section class="panel span2">
+    <section class="panel span2 a-eq">
       <div class="ph"><b>04</b>Эквалайзер<span class="grow"></span><button class="ghost" id="eqReset">Сброс</button></div>
       <div class="pills" id="pills"></div>
       <div class="eq" id="eq"></div>
