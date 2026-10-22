@@ -630,21 +630,30 @@ function renderTrack(){
   $('trackSub').textContent = [meta[2], meta[1]].filter(Boolean).join(' · ');
 }
 const fmt = sec => Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0');
+// trackDone: для текущего трека получен окончательный ответ (найден или точно нет); lookupBusy: поиск уже идёт
+let trackDone = false, lookupBusy = false;
 async function onTrackInfo(){
   const key = [meta[2], meta[0], meta[1]].join('|');
-  if (!meta[0] || key === trackKey) return;
-  trackKey = key;
-  $('coverImg').hidden = true; $('tDur').textContent = '--:--';
-  const r = await lookup(meta[2], meta[0], meta[1]);
-  if (trackKey !== key || !r) return;
-  if (r.dur) $('tDur').textContent = fmt(r.dur);
-  if (r.art){ $('coverImg').onload = () => $('coverImg').hidden = false; $('coverImg').src = r.art; }
+  if (!meta[0]) return;
+  if (key === trackKey && (trackDone || lookupBusy)) return;   // тот же трек: повторяем, только если прошлый поиск сорвался
+  if (key !== trackKey){
+    trackKey = key; trackDone = false;
+    $('coverImg').hidden = true; $('tDur').textContent = '--:--';
+  }
+  lookupBusy = true;
+  const { res, final } = await lookup(meta[2], meta[0], meta[1]);
+  lookupBusy = false;
+  if (trackKey !== key) return;
+  trackDone = final;
+  if (!res) return;
+  if (res.dur) $('tDur').textContent = fmt(res.dur);
+  if (res.art){ $('coverImg').onload = () => $('coverImg').hidden = false; $('coverImg').src = res.art; }
 }
 
 // --- обложка и длительность: Deezer, затем iTunes (JSONP — работает и с file://) ---
 const lookupCache = new Map();
 let jsonpN = 0;
-function jsonp(url, cbParam = 'callback', timeout = 6000){
+function jsonp(url, cbParam = 'callback', timeout = 10000){
   return new Promise((resolve, reject) => {
     const name = '__xm4cb' + (++jsonpN);
     const sc = document.createElement('script');
@@ -679,8 +688,8 @@ async function tryLookup(name, url, kind, listKey, artist, title){
     log('поиск ' + name + ': найдено ' + items.length
       + (items[0] ? ', первый: ' + items[0].artist + ' — ' + items[0].title + ' (' + items[0].dur + ' с)' : '')
       + (res ? ' → совпадение' : ' → совпадения нет'));
-    return res;
-  } catch(e){ log('поиск ' + name + ': недоступен (' + e.message + ')'); return null; }
+    return { res, ok: !d.error };
+  } catch(e){ log('поиск ' + name + ': недоступен (' + e.message + ')'); return { res: null, ok: false }; }
 }
 async function lookup(artist, title, album){
   const key = [artist, title, album].join('|');
@@ -695,12 +704,18 @@ async function lookup(artist, title, album){
     ['iTunes KZ', 'https://itunes.apple.com/search?term=' + plain + '&entity=song&limit=15&country=kz', 'itunes', 'results'],
   ];
   let res = null;
+  let anyFailed = false;
   for (const [name, url, kind, listKey] of attempts){
-    res = await tryLookup(name, url, kind, listKey, artist, title);
+    const r = await tryLookup(name, url, kind, listKey, artist, title);
+    if (!r.ok) anyFailed = true;
+    res = r.res;
     if (res) break;
   }
-  lookupCache.set(key, res);
-  return res;
+  // запоминаем найденное или окончательное «нет»; сбой сети/таймаут не запоминаем — повторим позже
+  const final = !!res || !anyFailed;
+  const out = { res, final };
+  if (final) lookupCache.set(key, out);
+  return out;
 }
 
 // ================= Визуалайзер =================
