@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>XM4 Control</title>
+<meta name="theme-color" content="#06080b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{
   --bg:#06080b; --panel:#0c1015; --panel2:#11161d; --line:#1b232d; --line2:#26313d;
@@ -65,7 +69,7 @@ button:disabled{opacity:.35;cursor:not-allowed}
 
 /* ---------- верхняя панель ---------- */
 .top{display:grid;grid-template-columns:auto 1fr auto;gap:22px;align-items:center}
-@media (max-width:780px){ .top{grid-template-columns:1fr} }
+@media (max-width:780px){ .top{grid-template-columns:1fr;gap:14px} .actions{justify-content:stretch} .actions button{flex:1 1 auto} .actions #btnFull{flex:0 0 auto} .batt{display:flex;align-items:center;gap:16px} .cells{margin-top:0;flex:1;width:auto} }
 .batt .big{font:700 40px/1 var(--mono);letter-spacing:-.02em}
 .batt .big small{font-size:16px;color:var(--muted);margin-left:2px}
 .batt .chg{color:var(--cy);font:600 11px var(--mono);letter-spacing:.1em;margin-left:6px}
@@ -102,6 +106,7 @@ button:disabled{opacity:.35;cursor:not-allowed}
   linear-gradient(180deg,rgba(255,255,255,.015),transparent),var(--bg)}
 #viz{display:block;width:100%;height:110px}
 .viz-wrap.fill #viz{position:absolute;inset:0;height:100%}
+.viz-wrap .tag[hidden]{display:none}
 .viz-wrap .tag{position:absolute;top:8px;right:8px;background:rgba(6,8,11,.7)}
 .ctrl{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;margin-top:14px}
 .transport{display:flex;gap:6px;align-items:center}
@@ -288,7 +293,7 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
         <button class="mode" data-m="off"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 16L16 8"/></svg>Off</button>
       </div>
       <div class="sub-block" id="ambBox">
-        <div class="lbl"><span>Уровень окружающего</span><b id="ambVal">10</b></div>
+        <div class="lbl"><span>Уровень окружающего звука</span><b id="ambVal">10</b></div>
         <div class="meter cy" id="amb" tabindex="0" role="slider" aria-label="Уровень окружающего звука"></div>
         <div class="trow" style="border-top:0;padding-bottom:0;margin-top:10px">
           <div class="t"><div>Фокус на голосе</div><small>Приглушает шумы, оставляя речь</small></div>
@@ -361,6 +366,62 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
 <div class="toast" id="toast"></div>
 
 <script>
+// ================= Язык: автоматически по языку браузера =================
+const LANG = /^(ru|uk|be|kk)\b/i.test(navigator.language || '') ? 'ru' : 'en';
+const EN = {
+  'Подключить':'Connect', 'Все порты':'All ports', 'Показать все порты без фильтра':'Show all ports without filter',
+  'Обновить':'Refresh', 'Отключить':'Disconnect', 'Во весь экран (F)':'Full screen (F)',
+  'Не подключено':'Not connected', 'Подключено':'Connected', 'Открываю канал…':'Opening channel…', 'Жду ответа…':'Waiting for reply…',
+  'Соединение потеряно':'Connection lost', 'Закрыть':'Close',
+  'Воспроизведение':'Playback', 'Живой звук':'Live audio', 'Показывать настоящий спектр системного звука':'Show the real spectrum of system audio',
+  'Предыдущий трек':'Previous track', 'Плей / пауза':'Play / pause', 'Следующий трек':'Next track', 'Громкость':'Volume',
+  'Шумоподавление':'Noise control', 'Уровень окружающего звука':'Ambient sound level',
+  'Фокус на голосе':'Focus on voice', 'Приглушает шумы, оставляя речь':'Reduces noise but keeps voices',
+  'Функции':'Features', 'Пауза и прозрачный звук, когда говоришь':'Pauses music and lets sound in when you talk',
+  'Чувствительность':'Sensitivity', 'Авто':'Auto', 'Высокая':'High', 'Низкая':'Low',
+  'Выход из режима':'End mode after', '15 с':'15 s', '30 с':'30 s', '1 мин':'1 min', 'Не выходить':'Never',
+  'Восстановление сжатого звука':'Upscales compressed audio', 'Пауза при снятии':'Pause when taken off', 'Датчик ношения':'Wear detection',
+  'Уведомление о заряде':'Battery alert', 'Предупредить, когда батарея садится':'Warn when the battery runs low', 'Выкл':'Off',
+  'Автоотключение':'Auto power off', 'Питание при бездействии':'Power when idle', 'Не отключать':'Never', 'Когда сняты':'When taken off',
+  'Эквалайзер':'Equalizer', 'Сброс':'Reset',
+  'плей/пауза':'play/pause', 'трек':'track', 'громкость':'volume', 'весь экран':'full screen', 'журнал':'log',
+  '05 // Журнал протокола':'05 // Protocol log', 'hex, напр. 10 00':'hex, e.g. 10 00', 'Отправить':'Send',
+  'Скан настроек':'Scan settings', 'Скан медиа':'Scan media', 'Скан тегов':'Scan tags', 'Очистить':'Clear',
+  'Звук не захвачен: отметь «Поделиться системным звуком»':'No audio captured: tick “Share system audio”',
+  'Захват звука недоступен: ':'Audio capture unavailable: ',
+  'Браузер не поддерживает уведомления':'This browser does not support notifications',
+  'Пуш запрещён — будет плашка на странице':'Notifications blocked — an on-page banner will be shown',
+  'Пуш разрешён до закрытия страницы':'Notifications allowed until the page is closed', 'Пуш разрешён':'Notifications allowed',
+  'Уведомления включены':'Notifications on', '⚠ Низкий заряд!':'⚠ Low battery!',
+  'WH-1000XM4: осталось {0}%. Пора на зарядку.':'WH-1000XM4: {0}% left. Time to charge.', 'Наушники садятся':'Headphones running low',
+  'Полосы сброшены':'Bands reset', 'Обновляю':'Refreshing', 'Полный экран недоступен':'Full screen unavailable',
+  'Порт открыт, но наушники не ответили. Отключись и выбери другую службу.':'Port is open but the headphones did not answer. Disconnect and pick the other service.',
+  'Не удалось подключиться: ':'Could not connect: ',
+  'Этот браузер не поддерживает Web Serial. Нужен Chrome или Edge 117+ на компьютере либо Chrome 137+ на Android.':
+    'This browser does not support Web Serial. Use Chrome or Edge 117+ on desktop, or Chrome 137+ on Android.',
+};
+function L(s, ...args){
+  let out = LANG === 'en' && EN[s] !== undefined ? EN[s] : s;
+  args.forEach((a, i) => out = out.replace('{' + i + '}', a));
+  return out;
+}
+function translatePage(){
+  document.documentElement.lang = LANG;
+  if (LANG !== 'en') return;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n; (n = walker.nextNode()); ){
+    const t = n.nodeValue.trim();
+    if (t && EN[t] !== undefined) n.nodeValue = n.nodeValue.replace(t, EN[t]);
+  }
+  document.querySelectorAll('[title],[placeholder],[aria-label]').forEach(el => {
+    for (const a of ['title','placeholder','aria-label']){
+      const v = el.getAttribute(a);
+      if (v && EN[v] !== undefined) el.setAttribute(a, EN[v]);
+    }
+  });
+}
+translatePage();
+
 // ================= Протокол Sony MDR v1 =================
 const UUID_HPC = '96cc203e-5068-46ad-b32d-e316f5e069ba'; // Serial HPC (твои XM4)
 const UUID_MC  = 'b9b213ce-eeab-49e4-8fd9-aa478ed1b26b'; // Serial MC
@@ -503,7 +564,7 @@ function meter(el, o){
 // ================= Разбор ответов =================
 function handlePayload(p){
   const c = p[0];
-  if (c === 0x01){ alive = true; setState('Подключено', 'ok'); }
+  if (c === 0x01){ alive = true; setState(L('Подключено'), 'ok'); }
   if (c === 0x05 && p.length > 3){
     const s = ascii(p.slice(3, 3 + p[2]));
     if (p[1] === 0x01 && s) $('devName').textContent = s;
@@ -781,13 +842,14 @@ function drawViz(now){
 }
 requestAnimationFrame(drawViz);
 
+if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) $('vizMode').hidden = true;
 $('vizMode').onclick = async () => {
   if (viz.live){ stopLive(); return; }
   try {
     const stream = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true, systemAudio:'include' });
     const at = stream.getAudioTracks()[0];
     stream.getVideoTracks().forEach(t => t.stop());
-    if (!at){ toast('Звук не захвачен: отметь «Поделиться системным звуком»'); return; }
+    if (!at){ toast(L('Звук не захвачен: отметь «Поделиться системным звуком»')); return; }
     const ac = new AudioContext();
     const src = ac.createMediaStreamSource(new MediaStream([at]));
     const an = ac.createAnalyser(); an.fftSize = 1024; an.smoothingTimeConstant = 0.75;
@@ -795,13 +857,13 @@ $('vizMode').onclick = async () => {
     viz.live = { ac, at }; viz.analyser = an; viz.data = new Uint8Array(an.frequencyBinCount);
     at.onended = stopLive;
     $('vizMode').classList.add('on'); $('vizMode').textContent = 'LIVE ●';
-  } catch(e){ if (e.name !== 'NotAllowedError') toast('Захват звука недоступен: ' + e.message); }
+  } catch(e){ if (e.name !== 'NotAllowedError') toast(L('Захват звука недоступен: ') + e.message); }
 };
 function stopLive(){
   if (!viz.live) return;
   try { viz.live.at.stop(); viz.live.ac.close(); } catch {}
   viz.live = null; viz.analyser = null;
-  $('vizMode').classList.remove('on'); $('vizMode').textContent = 'Живой звук';
+  $('vizMode').classList.remove('on'); $('vizMode').textContent = L('Живой звук');
 }
 
 // ================= Уведомление о низком заряде =================
@@ -810,19 +872,28 @@ const store = { get(k){ try { return localStorage.getItem(k); } catch { return n
 let notified = false, blinkT = null;
 $('notif').value = store.get('xm4-notif') ?? '20';
 async function ensurePerm(){
-  if (!('Notification' in window)) { $('notifHint').textContent = 'Браузер не поддерживает уведомления'; return false; }
+  if (!('Notification' in window)) { $('notifHint').textContent = L('Браузер не поддерживает уведомления'); return false; }
   if (Notification.permission === 'default') await Notification.requestPermission();
-  if (Notification.permission !== 'granted') { $('notifHint').textContent = 'Пуш запрещён — будет плашка на странице'; return false; }
-  $('notifHint').textContent = 'Пуш разрешён до закрытия страницы'; return true;
+  if (Notification.permission !== 'granted') { $('notifHint').textContent = L('Пуш запрещён — будет плашка на странице'); return false; }
+  $('notifHint').textContent = L(location.protocol === 'https:' ? 'Пуш разрешён' : 'Пуш разрешён до закрытия страницы'); return true;
 }
 $('notif').onchange = async e => {
   store.set('xm4-notif', e.target.value); notified = false;
-  if (+e.target.value && await ensurePerm()) toast('Уведомления включены');
+  if (+e.target.value && await ensurePerm()) toast(L('Уведомления включены'));
 };
+// на Android `new Notification()` запрещён — там пуш показывается только через service worker
+let swReg = null;
+if ('serviceWorker' in navigator && location.protocol === 'https:')
+  navigator.serviceWorker.register('sw.js').then(r => swReg = r).catch(e => log('service worker: ' + e.message));
+function notify(title, opts){
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (swReg) { swReg.showNotification(title, opts).catch(e => log('пуш: ' + e.message)); return; }
+  try { new Notification(title, opts); } catch(e){ log('пуш: ' + e.message); }
+}
 function lowBanner(text){
   $('lowText').textContent = text; $('low').hidden = false;
   clearInterval(blinkT); let on = false; const base = document.title;
-  blinkT = setInterval(() => { document.title = (on = !on) ? '⚠ Низкий заряд!' : base; }, 1000);
+  blinkT = setInterval(() => { document.title = (on = !on) ? L('⚠ Низкий заряд!') : base; }, 1000);
 }
 $('lowClose').onclick = () => { $('low').hidden = true; clearInterval(blinkT); blinkT = null; };
 document.addEventListener('visibilitychange', () => { if (!document.hidden && blinkT){ clearInterval(blinkT); blinkT = null; } });
@@ -831,9 +902,8 @@ function checkBattery(level, charging){
   if (!th || charging || level > th + 5) { notified = false; return; }
   if (level <= th && !notified){
     notified = true;
-    const body = 'WH-1000XM4: осталось ' + level + '%. Пора на зарядку.';
-    if ('Notification' in window && Notification.permission === 'granted')
-      new Notification('Наушники садятся', { body, tag: 'xm4-batt', requireInteraction: level <= 10 });
+    const body = L('WH-1000XM4: осталось {0}%. Пора на зарядку.', level);
+    notify(L('Наушники садятся'), { body, tag: 'xm4-batt', requireInteraction: level <= 10 });
     lowBanner(body);
   }
 }
@@ -874,7 +944,7 @@ function buildEq(){
 }
 function renderEqValues(){ eqMeters.forEach((m, i) => { m.set(eq.vals[i]); m.label.textContent = sgn(eq.vals[i]); }); }
 function sendBands(){ send([0x58, 0x01, eq.preset >= 0xa0 ? eq.preset : 0xa0, 0x06, ...eq.vals.map(v => v + 10)]); }
-$('eqReset').onclick = () => { eq.vals.fill(0); renderEqValues(); sendBands(); toast('Полосы сброшены'); };
+$('eqReset').onclick = () => { eq.vals.fill(0); renderEqValues(); sendBands(); toast(L('Полосы сброшены')); };
 buildEq(); renderPills();
 
 // ================= Журнал =================
@@ -917,18 +987,18 @@ async function openPort(p){
   const sid = String(info.bluetoothServiceClassId || '').toLowerCase();
   log('порт: ' + JSON.stringify(info));
   $('chan').textContent = UUID_NAMES[sid] || (info.bluetoothServiceClassId ? 'BT' : 'COM');
-  setState('Открываю канал…');
+  setState(L('Открываю канал…'));
   await p.open({ baudRate: 9600 });
   reader = p.readable.getReader();
   writer = p.writable.getWriter();
   seq = 0; alive = false; queue = Promise.resolve();
   readLoop();
-  setState('Жду ответа…', 'ok');
+  setState(L('Жду ответа…'), 'ok');
   setConnectedUI(true);
   send([0x00, 0x00]);
   refresh();
   setTimeout(() => {
-    if (writer && !alive) $('warn').textContent = 'Порт открыт, но наушники не ответили. Отключись и выбери другую службу.';
+    if (writer && !alive) $('warn').textContent = L('Порт открыт, но наушники не ответили. Отключись и выбери другую службу.');
   }, 5000);
 }
 async function connect(showAll){
@@ -939,8 +1009,8 @@ async function connect(showAll){
     await openPort(await navigator.serial.requestPort(opts));
   } catch(e){
     log('! ' + e.message);
-    if (e.name !== 'NotFoundError') $('warn').textContent = 'Не удалось подключиться: ' + e.message;
-    port = null; setState('Не подключено', 'bad');
+    if (e.name !== 'NotFoundError') $('warn').textContent = L('Не удалось подключиться: ') + e.message;
+    port = null; setState(L('Не подключено'), 'bad');
   }
 }
 async function disconnect(silent){
@@ -950,7 +1020,7 @@ async function disconnect(silent){
   try { writer && writer.releaseLock(); } catch{}
   try { p && await p.close(); } catch{}
   reader = writer = null; alive = false; playing = false; renderPlay();
-  setState(silent ? 'Соединение потеряно' : 'Не подключено', silent ? 'bad' : '');
+  setState(L(silent ? 'Соединение потеряно' : 'Не подключено'), silent ? 'bad' : '');
   setConnectedUI(false);
 }
 async function autoConnect(){
@@ -960,18 +1030,18 @@ async function autoConnect(){
              || ports.find(p => UUIDS.includes(String(p.getInfo().bluetoothServiceClassId || '').toLowerCase()));
   if (!known) return;
   try { await openPort(known); }
-  catch(e){ log('автоподключение не удалось: ' + e.message); port = null; setState('Не подключено'); setConnectedUI(false); }
+  catch(e){ log('автоподключение не удалось: ' + e.message); port = null; setState(L('Не подключено')); setConnectedUI(false); }
 }
 
 $('btnConnect').onclick = () => connect(false);
 $('btnAll').onclick = () => connect(true);
 $('btnDisconnect').onclick = () => disconnect(false);
-$('btnRefresh').onclick = () => { refresh(); toast('Обновляю'); };
+$('btnRefresh').onclick = () => { refresh(); toast(L('Обновляю')); };
 setInterval(() => { if (writer) send([0x10, 0x00]); }, 60000);
 
 if (!('serial' in navigator)){
   $('btnConnect').disabled = $('btnAll').disabled = true;
-  $('warn').textContent = 'Этот браузер не поддерживает Web Serial. Нужен Chrome или Edge (desktop), версия 117+.';
+  $('warn').textContent = L('Этот браузер не поддерживает Web Serial. Нужен Chrome или Edge 117+ на компьютере либо Chrome 137+ на Android.');
 } else {
   navigator.serial.addEventListener('connect', () => { if (!port) autoConnect(); });
   autoConnect();
@@ -989,7 +1059,7 @@ function toggleLog(){
 }
 function toggleFull(){
   if (document.fullscreenElement) document.exitFullscreen();
-  else document.documentElement.requestFullscreen().catch(() => toast('Полный экран недоступен'));
+  else document.documentElement.requestFullscreen().catch(() => toast(L('Полный экран недоступен')));
 }
 $('btnFull').onclick = toggleFull;
 $('kFull').onclick = toggleFull;
