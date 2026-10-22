@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XM4 Control</title>
+<style>
+:root{
+  --bg:#06080b; --panel:#0c1015; --panel2:#11161d; --line:#1b232d; --line2:#26313d;
+  --text:#dfe7ee; --muted:#6b7a89; --dim:#3a4653;
+  --acc:#ff6a1a; --acc2:#ffb27a; --accglow:rgba(255,106,26,.35);
+  --cy:#39d8f0; --cyglow:rgba(57,216,240,.3);
+  --ok:#3ddc84; --bad:#ff4d5e;
+  --mono:"Cascadia Mono","JetBrains Mono",Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;color:var(--text);font:14px/1.45 "Segoe UI Variable","Segoe UI",system-ui,sans-serif;min-height:100vh;
+  background:
+    radial-gradient(1200px 600px at 70% -10%, rgba(255,106,26,.07), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(57,216,240,.05), transparent 60%),
+    repeating-linear-gradient(0deg, transparent 0 31px, rgba(255,255,255,.025) 31px 32px),
+    repeating-linear-gradient(90deg, transparent 0 31px, rgba(255,255,255,.025) 31px 32px),
+    var(--bg)}
+main{max-width:980px;margin:0 auto;padding:20px 16px 48px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.span2{grid-column:1/-1}
+@media (max-width:780px){ .grid{grid-template-columns:1fr} }
+.mono{font-family:var(--mono)}
+
+/* ---------- панели ---------- */
+.panel{position:relative;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);
+  border-radius:6px;padding:16px 18px}
+.panel::before,.panel::after{content:"";position:absolute;width:10px;height:10px;border:1px solid var(--acc);opacity:.7}
+.panel::before{top:-1px;left:-1px;border-right:0;border-bottom:0;border-top-left-radius:6px}
+.panel::after{bottom:-1px;right:-1px;border-left:0;border-top:0;border-bottom-right-radius:6px}
+.ph{display:flex;align-items:center;gap:10px;margin:0 0 14px;font:600 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.ph b{color:var(--acc);font-weight:600}
+.ph .grow{flex:1;height:1px;background:linear-gradient(90deg,var(--line2),transparent)}
+.ph .x{letter-spacing:.08em}
+
+/* ---------- кнопки ---------- */
+button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line2);border-radius:4px;
+  padding:7px 12px;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s}
+button:hover{border-color:var(--acc)}
+button:focus-visible,.meter:focus-visible,select:focus-visible{outline:1px solid var(--cy);outline-offset:2px}
+button:disabled{opacity:.35;cursor:not-allowed}
+.btn-acc{background:var(--acc);border-color:var(--acc);color:#120700;font-weight:700;box-shadow:0 0 18px var(--accglow)}
+.btn-acc:hover{background:var(--acc2)}
+.tag{font:600 10.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;padding:5px 8px;border-radius:3px;
+  border:1px solid var(--line2);color:var(--muted);background:transparent}
+.tag.on{color:var(--cy);border-color:var(--cy);box-shadow:0 0 12px var(--cyglow) inset}
+
+/* ---------- верхняя панель ---------- */
+.top{display:grid;grid-template-columns:auto 1fr auto;gap:22px;align-items:center}
+@media (max-width:780px){ .top{grid-template-columns:1fr} }
+.batt .big{font:700 40px/1 var(--mono);letter-spacing:-.02em}
+.batt .big small{font-size:16px;color:var(--muted);margin-left:2px}
+.batt .chg{color:var(--cy);font:600 11px var(--mono);letter-spacing:.1em;margin-left:6px}
+.cells{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin-top:8px;width:170px}
+.cells i{height:8px;border-radius:1px;background:var(--line)}
+.cells i.on{background:var(--ok);box-shadow:0 0 6px rgba(61,220,132,.5)}
+.cells.low i.on{background:var(--bad);box-shadow:0 0 6px rgba(255,77,94,.5)}
+.dev .name{font:700 18px/1.1 var(--mono);letter-spacing:.02em}
+.dev .meta{font:12px var(--mono);color:var(--muted);margin-top:6px;display:flex;gap:14px;flex-wrap:wrap}
+.dev .meta span b{color:var(--text);font-weight:500}
+.link{display:inline-flex;align-items:center;gap:8px;font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;margin-top:10px;color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim)}
+.dot.ok{background:var(--ok);box-shadow:0 0 0 3px rgba(61,220,132,.18),0 0 10px var(--ok);animation:pulse 2s infinite}
+.dot.bad{background:var(--bad)}
+@keyframes pulse{50%{box-shadow:0 0 0 5px rgba(61,220,132,.05),0 0 6px var(--ok)}}
+.actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.warn{color:var(--bad);font:12px var(--mono);margin-top:10px}
+.warn:empty{display:none}
+
+/* ---------- воспроизведение ---------- */
+.np{display:grid;grid-template-columns:96px 1fr;gap:16px;align-items:center}
+.cover{width:96px;height:96px;border-radius:4px;background:var(--bg);border:1px solid var(--line2);position:relative;overflow:hidden;display:grid;place-items:center}
+.cover svg{width:34px;height:34px;stroke:var(--dim);fill:none;stroke-width:1.4}
+.cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cover::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px)}
+.track{font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.005em}
+.tsub{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;min-height:19px}
+.chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.chip{font:600 10.5px/1 var(--mono);letter-spacing:.1em;padding:5px 8px;border-radius:3px;background:var(--bg);border:1px solid var(--line2);color:var(--muted)}
+.chip b{color:var(--cy);font-weight:600}
+.chip.play b{color:var(--ok)}
+.viz-wrap{position:relative;margin-top:14px;border:1px solid var(--line);border-radius:4px;background:
+  linear-gradient(180deg,rgba(255,255,255,.015),transparent),var(--bg)}
+#viz{display:block;width:100%;height:110px}
+.viz-wrap .tag{position:absolute;top:8px;right:8px;background:rgba(6,8,11,.7)}
+.ctrl{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;margin-top:14px}
+.transport{display:flex;gap:6px;align-items:center}
+.transport button{width:40px;height:40px;padding:0;display:grid;place-items:center}
+.transport button svg{width:16px;height:16px;fill:var(--text)}
+.transport .play{width:52px;height:52px;background:var(--acc);border-color:var(--acc);box-shadow:0 0 22px var(--accglow)}
+.transport .play svg{width:20px;height:20px;fill:#120700}
+
+/* ---------- сегментные шкалы ---------- */
+.lbl{display:flex;justify-content:space-between;align-items:baseline;font:600 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.lbl b{font:700 15px var(--mono);color:var(--text);letter-spacing:0}
+.meter{display:flex;gap:3px;cursor:pointer;touch-action:none;user-select:none;padding:3px 0;border-radius:3px}
+.meter i{flex:1;height:14px;background:var(--line);border-radius:1px;transition:background .08s}
+.meter i.on{background:var(--acc);box-shadow:0 0 6px var(--accglow)}
+.meter i.cur{background:var(--acc2)}
+.meter.cy i.on{background:var(--cy);box-shadow:0 0 6px var(--cyglow)}
+.meter.cy i.cur{background:#a6f2ff}
+.meter.v{flex-direction:column-reverse;height:160px;width:30px;margin:0 auto;padding:0 3px}
+.meter.v i{height:auto;width:100%}
+.meter.v i.zero{background:var(--line2)}
+.meter.nozero i:first-child{display:none}
+
+/* ---------- шумоподавление ---------- */
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.mode{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 6px 12px;font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.mode svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.mode.on{color:var(--acc);border-color:var(--acc);background:rgba(255,106,26,.08);box-shadow:0 0 16px var(--accglow) inset}
+.sub-block{margin-top:16px;transition:opacity .2s}
+.sub-block.off{opacity:.3;pointer-events:none}
+
+/* ---------- переключатели ---------- */
+.trow{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px dashed var(--line2)}
+.ph + .trow{border-top:0;padding-top:0}
+.trow .t{flex:1;min-width:0}
+.trow .t div{font-weight:600}
+.trow .t small{color:var(--muted);font-size:12px}
+.sw{position:relative;width:42px;height:20px;flex:none}
+.sw input{opacity:0;width:0;height:0;position:absolute}
+.sw span{position:absolute;inset:0;border-radius:3px;background:var(--bg);border:1px solid var(--line2);cursor:pointer;transition:.15s}
+.sw span::after{content:"";position:absolute;width:14px;height:12px;left:3px;top:3px;border-radius:2px;background:var(--dim);transition:.15s}
+.sw input:checked + span{border-color:var(--acc);box-shadow:0 0 10px var(--accglow) inset}
+.sw input:checked + span::after{transform:translateX(20px);background:var(--acc);box-shadow:0 0 8px var(--acc)}
+.sw input:focus-visible + span{outline:1px solid var(--cy);outline-offset:2px}
+select{font:12px var(--mono);padding:6px 8px;border-radius:4px;border:1px solid var(--line2);background:var(--bg);color:var(--text)}
+.srow{display:flex;align-items:center;gap:10px;margin-top:6px}
+.srow span{flex:1;color:var(--muted);font-size:12.5px}
+
+/* ---------- эквалайзер ---------- */
+.pills{display:flex;flex-wrap:wrap;gap:5px}
+.pill{font:600 11px var(--mono);letter-spacing:.06em;padding:6px 10px;color:var(--muted)}
+.pill.on{color:var(--cy);border-color:var(--cy);box-shadow:0 0 10px var(--cyglow) inset}
+.eq{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:18px;text-align:center}
+.eq .v{font:700 13px var(--mono);margin-bottom:8px;color:var(--text)}
+.eq .f{font:600 10.5px var(--mono);color:var(--muted);margin-top:8px;letter-spacing:.06em}
+.eq .cb .f{color:var(--cy)}
+
+/* ---------- прочее ---------- */
+#controls.disabled{opacity:.35;pointer-events:none;filter:grayscale(.6)}
+.low{display:flex;align-items:center;gap:10px;border:1px solid var(--bad);background:rgba(255,77,94,.08);color:var(--text);
+  border-radius:4px;padding:10px 14px;margin-bottom:12px;font:600 13px var(--mono)}
+.low[hidden]{display:none}
+details summary{cursor:pointer;color:var(--muted);font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.row{display:flex;gap:6px;align-items:center;margin-top:12px;flex-wrap:wrap}
+#log{font:11.5px/1.5 var(--mono);background:#030405;border:1px solid var(--line);border-radius:4px;padding:10px;
+  height:220px;overflow:auto;white-space:pre-wrap;margin-top:10px;color:#9fb3c4}
+input[type=text]{font:12px var(--mono);padding:7px 10px;border-radius:4px;border:1px solid var(--line2);background:var(--bg);color:var(--text);flex:1;min-width:140px}
+.ghost{background:transparent;border-color:transparent;color:var(--muted);font:600 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:5px 8px}
+.ghost:hover{color:var(--acc);border-color:transparent}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;font:600 12px var(--mono);
+  background:var(--panel2);border:1px solid var(--acc);color:var(--text);padding:8px 14px;border-radius:4px;transition:.2s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%)}
+@media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ===== Шапка ===== -->
+  <section class="panel" style="margin-bottom:12px">
+    <div class="top">
+      <div class="batt">
+        <div class="big mono"><span id="battNum">--</span><small>%</small><span class="chg" id="chg" hidden>CHG</span></div>
+        <div class="cells" id="cells"></div>
+      </div>
+      <div class="dev">
+        <div class="name" id="devName">WH-1000XM4</div>
+        <div class="meta"><span>FW <b id="fw">—</b></span><span>CH <b id="chan">—</b></span></div>
+        <div class="link"><span class="dot" id="dot"></span><span id="state">Не подключено</span></div>
+      </div>
+      <div class="actions">
+        <button class="btn-acc" id="btnConnect">Подключить</button>
+        <button id="btnAll" title="Показать все порты без фильтра">Все порты</button>
+        <button id="btnRefresh" disabled>Обновить</button>
+        <button id="btnDisconnect" disabled>Отключить</button>
+      </div>
+    </div>
+    <div class="warn" id="warn"></div>
+  </section>
+
+  <div class="low" id="low" hidden><span>⚠</span><span id="lowText" style="flex:1"></span><button class="ghost" id="lowClose">Закрыть</button></div>
+
+  <div id="controls" class="grid disabled">
+
+    <!-- ===== Воспроизведение ===== -->
+    <section class="panel span2">
+      <div class="ph"><b>01</b>Воспроизведение<span class="grow"></span></div>
+      <div class="np">
+        <div class="cover"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></svg><img id="coverImg" alt="" hidden></div>
+        <div style="min-width:0">
+          <div class="track" id="trackTitle">—</div>
+          <div class="tsub" id="trackSub"></div>
+          <div class="chips">
+            <span class="chip play">STATE <b id="playTxt">PAUSE</b></span>
+            <span class="chip">DUR <b id="tDur">--:--</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="viz-wrap">
+        <canvas id="viz"></canvas>
+        <button class="tag" id="vizMode" title="Показывать настоящий спектр системного звука">Живой звук</button>
+      </div>
+      <div class="ctrl">
+        <div class="transport">
+          <button id="btnPrev" title="Предыдущий трек"><svg viewBox="0 0 24 24"><path d="M18 6l-9 6 9 6z"/><rect x="6" y="6" width="2" height="12" rx="1"/></svg></button>
+          <button class="play" id="btnPlay" title="Плей / пауза"><svg viewBox="0 0 24 24" id="playIcon"></svg></button>
+          <button id="btnNext" title="Следующий трек"><svg viewBox="0 0 24 24"><path d="M6 6l9 6-9 6z"/><rect x="16" y="6" width="2" height="12" rx="1"/></svg></button>
+        </div>
+        <div>
+          <div class="lbl"><span>Громкость</span><b id="volVal">--</b></div>
+          <div class="meter" id="vol" tabindex="0" role="slider" aria-label="Громкость"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Шумоподавление ===== -->
+    <section class="panel">
+      <div class="ph"><b>02</b>Шумоподавление<span class="grow"></span></div>
+      <div class="modes" id="modes">
+        <button class="mode" data-m="nc"><svg viewBox="0 0 24 24"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><rect x="2" y="14" width="5" height="7" rx="1.5"/><rect x="17" y="14" width="5" height="7" rx="1.5"/></svg>NC</button>
+        <button class="mode" data-m="amb"><svg viewBox="0 0 24 24"><path d="M2 10c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M2 16c2-3 4-3 6 0s4 3 6 0 4-3 6 0" opacity=".5"/></svg>Ambient</button>
+        <button class="mode" data-m="off"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 16L16 8"/></svg>Off</button>
+      </div>
+      <div class="sub-block" id="ambBox">
+        <div class="lbl"><span>Уровень окружающего</span><b id="ambVal">10</b></div>
+        <div class="meter cy" id="amb" tabindex="0" role="slider" aria-label="Уровень окружающего звука"></div>
+        <div class="trow" style="border-top:0;padding-bottom:0;margin-top:10px">
+          <div class="t"><div>Фокус на голосе</div><small>Приглушает шумы, оставляя речь</small></div>
+          <label class="sw"><input type="checkbox" id="voice"><span></span></label>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Функции ===== -->
+    <section class="panel">
+      <div class="ph"><b>03</b>Функции<span class="grow"></span></div>
+      <div class="trow">
+        <div class="t"><div>Speak-to-Chat</div><small>Пауза и прозрачный звук, когда говоришь</small></div>
+        <label class="sw"><input type="checkbox" id="stc"><span></span></label>
+      </div>
+      <div class="sub-block" id="stcBox" style="margin:0 0 8px">
+        <div class="srow" style="margin-top:0"><span>Чувствительность</span>
+          <select id="stcSens"><option value="0">Авто</option><option value="1">Высокая</option><option value="2">Низкая</option></select></div>
+        <div class="srow"><span>Выход из режима</span>
+          <select id="stcTime"><option value="0">15 с</option><option value="1">30 с</option><option value="2">1 мин</option><option value="3">Не выходить</option></select></div>
+      </div>
+      <div class="trow">
+        <div class="t"><div>DSEE Extreme</div><small>Восстановление сжатого звука</small></div>
+        <label class="sw"><input type="checkbox" id="dsee"><span></span></label>
+      </div>
+      <div class="trow">
+        <div class="t"><div>Пауза при снятии</div><small>Датчик ношения</small></div>
+        <label class="sw"><input type="checkbox" id="wear"><span></span></label>
+      </div>
+      <div class="trow">
+        <div class="t"><div>Уведомление о заряде</div><small id="notifHint">Предупредить, когда батарея садится</small></div>
+        <select id="notif"><option value="0">Выкл</option><option value="30">30%</option><option value="20">20%</option><option value="10">10%</option></select>
+      </div>
+      <div class="trow">
+        <div class="t"><div>Автоотключение</div><small>Питание при бездействии</small></div>
+        <select id="apo"><option value="17,0">Не отключать</option><option value="16,0">Когда сняты</option></select>
+      </div>
+    </section>
+
+    <!-- ===== Эквалайзер ===== -->
+    <section class="panel span2">
+      <div class="ph"><b>04</b>Эквалайзер<span class="grow"></span><button class="ghost" id="eqReset">Сброс</button></div>
+      <div class="pills" id="pills"></div>
+      <div class="eq" id="eq"></div>
+    </section>
+  </div>
+
+  <!-- ===== Журнал ===== -->
+  <section class="panel span2" style="margin-top:12px">
+    <details>
+      <summary>05 // Журнал протокола</summary>
+      <div class="row">
+        <input type="text" id="raw" placeholder="hex, напр. 10 00">
+        <button id="rawSend" disabled>Отправить</button>
+        <button class="ghost" id="scan">Скан настроек</button>
+        <button class="ghost" id="scanMedia">Скан медиа</button>
+        <button class="ghost" id="scanTags">Скан тегов</button>
+        <button class="ghost" id="logClear">Очистить</button>
+      </div>
+      <div id="log"></div>
+    </details>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+// ================= Протокол Sony MDR v1 =================
+const UUID_HPC = '96cc203e-5068-46ad-b32d-e316f5e069ba'; // Serial HPC (твои XM4)
+const UUID_MC  = 'b9b213ce-eeab-49e4-8fd9-aa478ed1b26b'; // Serial MC
+const UUID_V1  = '96cc203e-5068-46ad-9b05-6f3e5f7e3d84';
+const UUID_V2  = '956c7b26-d49a-4ba8-b03f-b17d393cb6e2';
+const UUIDS = [UUID_HPC, UUID_MC, UUID_V1, UUID_V2];
+const UUID_NAMES = { [UUID_HPC]:'HPC', [UUID_MC]:'MC', [UUID_V1]:'V1', [UUID_V2]:'V2' };
+const START = 0x3E, END = 0x3C, ESC = 0x3D;
+const T_ACK = 0x01, T_DATA = 0x0C, T_DATA2 = 0x0E;
+
+let port = null, reader = null, writer = null, alive = false;
+let seq = 0, ackWaiter = null, queue = Promise.resolve();
+let rxBuf = [], inFrame = false;
+
+const $ = id => document.getElementById(id);
+const ascii = arr => new TextDecoder().decode(new Uint8Array(arr)).replace(/[\x00-\x1f�]/g,'');
+// строка в ответе = байт длины + ровно столько байт корректного UTF-8 до конца пакета
+const strictUtf8 = new TextDecoder('utf-8', { fatal: true });
+function findString(p){
+  for (let k = 1; k < p.length; k++){
+    const len = p[k];
+    if (len > 0 && k + 1 + len === p.length){
+      try {
+        const t = strictUtf8.decode(new Uint8Array(p.slice(k + 1)));
+        if (!/[\x00-\x1f\x7f]/.test(t)) return t;
+      } catch {}
+    }
+  }
+  return null;
+}
+const hex = a => Array.from(a, b => b.toString(16).padStart(2, '0')).join(' ');
+function log(msg){ const l=$('log'); l.textContent += msg + '\n'; l.scrollTop = l.scrollHeight; }
+let toastT;
+function toast(t){ const e=$('toast'); e.textContent=t; e.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>e.classList.remove('show'),1600); }
+
+function encode(type, s, payload){
+  const len = payload.length;
+  const body = [type, s, (len>>>24)&255, (len>>>16)&255, (len>>>8)&255, len&255, ...payload];
+  body.push(body.reduce((a,b)=>a+b,0) & 255);
+  const out = [START];
+  for (const b of body){ if (b===0x3C||b===0x3D||b===0x3E) out.push(ESC, b & 0xEF); else out.push(b); }
+  out.push(END);
+  return new Uint8Array(out);
+}
+function decode(raw){
+  const b = [];
+  for (let i=0;i<raw.length;i++){ if (raw[i]===ESC && i+1<raw.length) b.push(raw[++i] | 0x10); else b.push(raw[i]); }
+  if (b.length < 7) return null;
+  const len = (b[2]<<24)|(b[3]<<16)|(b[4]<<8)|b[5];
+  const payload = b.slice(6, 6+len);
+  const sum = b.slice(0, 6+len).reduce((x,y)=>x+y,0) & 255;
+  if (sum !== b[6+len]) { log('! неверная контрольная сумма: ' + hex(b)); return null; }
+  return { type:b[0], seq:b[1], payload };
+}
+async function rawWrite(bytes){ if (writer) await writer.write(bytes); }
+function send(payload){
+  queue = queue.then(() => sendNow(payload)).catch(e => log('! ' + e.message));
+  return queue;
+}
+async function sendNow(payload){
+  if (!writer) return;
+  for (let attempt=0; attempt<3; attempt++){
+    log('→ ' + hex(payload));
+    const ack = new Promise(res => { ackWaiter = res; setTimeout(()=>res(null), 1200); });
+    await rawWrite(encode(T_DATA, seq, payload));
+    const r = await ack; ackWaiter = null;
+    if (r){ seq = r.seq; return; }
+    log('… нет ACK, повтор');
+  }
+  log('! устройство не подтвердило команду');
+}
+async function readLoop(){
+  try {
+    while (true){
+      const { value, done } = await reader.read();
+      if (done) break;
+      for (const byte of value){
+        if (byte === START){ inFrame = true; rxBuf = []; }
+        else if (byte === END && inFrame){ inFrame = false; handleFrame(rxBuf); }
+        else if (inFrame) rxBuf.push(byte);
+      }
+    }
+  } catch(e){ log('! чтение: ' + e.message); }
+  if (port) await disconnect(true);
+}
+function handleFrame(raw){
+  const m = decode(raw);
+  if (!m) return;
+  if (m.type === T_ACK){ if (ackWaiter) ackWaiter(m); return; }
+  if (m.type === T_DATA || m.type === T_DATA2){
+    rawWrite(encode(T_ACK, 1 - m.seq, [])).catch(()=>{});
+    const txt = findString(m.payload);
+    log('← ' + hex(m.payload) + (txt !== null ? '   «' + txt + '»' : ''));
+    handlePayload(m.payload);
+  }
+}
+
+// ================= Сегментная шкала =================
+function meter(el, o){
+  const n = o.max - o.min + 1, segs = [];
+  el.innerHTML = '';
+  if (o.vertical) el.classList.add('v');
+  for (let i = 0; i < n; i++){
+    const s = document.createElement('i');
+    if (o.center !== undefined && o.min + i === o.center) s.classList.add('zero');
+    el.appendChild(s); segs.push(s);
+  }
+  const api = { value: o.min };
+  api.set = v => {
+    v = Math.max(o.min, Math.min(o.max, Math.round(v)));
+    api.value = v;
+    segs.forEach((s, i) => {
+      const x = o.min + i;
+      let on;
+      if (o.center !== undefined) on = v >= o.center ? (x > o.center && x <= v) : (x < o.center && x >= v);
+      else on = x <= v && x > (o.floor ?? o.min - 1);
+      s.classList.toggle('on', on);
+      s.classList.toggle('cur', on && x === v);
+    });
+    el.setAttribute('aria-valuenow', v);
+    return v;
+  };
+  const fromPointer = e => {
+    const r = el.getBoundingClientRect();
+    const f = o.vertical ? 1 - (e.clientY - r.top) / r.height : (e.clientX - r.left) / r.width;
+    return o.min + Math.max(0, Math.min(1, f)) * (o.max - o.min);
+  };
+  const change = v => { const old = api.value; if (api.set(v) !== old) o.onInput(api.value); };
+  el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); change(fromPointer(e)); });
+  el.addEventListener('pointermove', e => { if (el.hasPointerCapture(e.pointerId)) change(fromPointer(e)); });
+  el.addEventListener('keydown', e => {
+    const d = { ArrowUp:1, ArrowRight:1, ArrowDown:-1, ArrowLeft:-1 }[e.key];
+    if (d){ e.preventDefault(); change(api.value + d); }
+  });
+  el.setAttribute('aria-valuemin', o.min); el.setAttribute('aria-valuemax', o.max);
+  api.set(o.value ?? o.min);
+  return api;
+}
+
+// ================= Разбор ответов =================
+function handlePayload(p){
+  const c = p[0];
+  if (c === 0x01){ alive = true; setState('Подключено', 'ok'); }
+  if (c === 0x05 && p.length > 3){
+    const s = ascii(p.slice(3, 3 + p[2]));
+    if (p[1] === 0x01 && s) $('devName').textContent = s;
+    if (p[1] === 0x02 && s) $('fw').textContent = s;
+  }
+  if ((c === 0x11 || c === 0x13) && p[1] === 0x00 && p.length >= 3) renderBattery(p[2], !!p[3]);
+  if ((c === 0x67 || c === 0x69) && p[1] === 0x02 && p.length >= 8){
+    ui.mode = p[2] === 0x00 ? 'off' : (p[4] === 0x00 && p[7] > 0 ? 'amb' : 'nc');
+    if (p[7] > 0){ ui.level = p[7]; ambM.set(p[7]); $('ambVal').textContent = p[7]; }
+    $('voice').checked = !!p[6];
+    renderMode();
+  }
+  if ((c === 0x57 || c === 0x59) && p[1] === 0x01 && p.length >= 3){
+    eq.preset = p[2]; renderPills();
+    if (p[3] >= 6 && p.length >= 10){ for (let i=0;i<6;i++) eq.vals[i] = p[4+i] - 10; renderEqValues(); }
+  }
+  if ((c === 0xe7 || c === 0xe9) && p[1] === 0x02 && p.length >= 4) $('dsee').checked = !!p[3];
+  // громкость: a7/a9 01 20 уровень
+  if ((c === 0xa7 || c === 0xa9) && p[2] === 0x20 && p.length >= 4){ volM.set(p[3]); $('volVal').textContent = p[3]; }
+  // метаданные трека: a7/a9 01 поле 02 длина строка; поле: 00 название, 01 альбом, 02 исполнитель, 03 жанр
+  if ((c === 0xa7 || c === 0xa9) && p[1] === 0x01 && p[2] <= 0x03 && p.length >= 5 && p.length >= 5 + p[4]){
+    meta[p[2]] = new TextDecoder().decode(new Uint8Array(p.slice(5, 5 + p[4]))).trim();
+    renderTrack();
+    if (p[2] === 0x01 && c === 0xa7) onTrackInfo();
+  }
+  if (c === 0xa1) askTrackSoon();
+  // воспроизведение: a3/a5 01 00 состояние (01 играет, 02 пауза)
+  if ((c === 0xa3 || c === 0xa5) && p[1] === 0x01 && p.length >= 4){
+    playing = p[3] === 0x01; renderPlay();
+    if (c === 0xa5) askTrackSoon();
+  }
+  if (c === 0xf7 || c === 0xf9){
+    // Speak-to-Chat: ответ на запрос f7 05 00 xx, уведомление f9 05 01 xx (f9 05 02 .. — другой параметр)
+    if (p[1] === 0x05 && p.length >= 4 && (c === 0xf7 || p[2] === 0x01)){ $('stc').checked = p[3] === 0x01; renderStc(); }
+    if (p[1] === 0x03 && p.length >= 4) $('wear').checked = p[3] === 0x01;
+    if (p[1] === 0x04 && p.length >= 5) $('apo').value = p[3] + ',' + p[4];
+  }
+  if ((c === 0xfb || c === 0xfd) && p[1] === 0x05 && p.length >= 4){ $('stcSens').value = p[2]; $('stcTime').value = p[3]; }
+}
+
+// ================= Команды =================
+function refresh(){
+  send([0x04, 0x01]);         // модель
+  send([0x04, 0x02]);         // прошивка
+  send([0x10, 0x00]);         // батарея
+  send([0x66, 0x02]);         // шумодав
+  send([0x56, 0x01]);         // эквалайзер
+  send([0xe6, 0x02]);         // DSEE
+  send([0xa6, 0x01, 0x20]);   // громкость
+  send([0xa2, 0x01, 0x00]);   // состояние воспроизведения
+  askTrack();                 // название, исполнитель, альбом
+  send([0xf6, 0x05]);         // Speak-to-Chat
+  send([0xfa, 0x05]);         // настройки Speak-to-Chat
+  send([0xf6, 0x03]);         // пауза при снятии
+  send([0xf6, 0x04]);         // автоотключение
+}
+
+// --- батарея ---
+const cells = $('cells');
+for (let i = 0; i < 10; i++) cells.appendChild(document.createElement('i'));
+function renderBattery(level, charging){
+  $('battNum').textContent = level;
+  $('chg').hidden = !charging;
+  [...cells.children].forEach((c, i) => c.classList.toggle('on', i < Math.ceil(level / 10)));
+  cells.classList.toggle('low', level <= 20);
+  document.title = level + '% · XM4 Control';
+  checkBattery(level, charging);
+}
+
+// --- шумоподавление ---
+const ui = { mode:'nc', level:10 };
+function sendAsm(){
+  const on = ui.mode !== 'off', nc = ui.mode === 'nc';
+  send([0x68, 0x02, on ? 0x11 : 0x00, 0x02, nc ? 0x02 : 0x00, 0x01,
+        $('voice').checked && !nc ? 1 : 0, nc ? 0 : ui.level]);
+}
+function renderMode(){
+  document.querySelectorAll('#modes .mode').forEach(b => b.classList.toggle('on', b.dataset.m === ui.mode));
+  $('ambBox').classList.toggle('off', ui.mode !== 'amb');
+}
+document.querySelectorAll('#modes .mode').forEach(b => b.onclick = () => { ui.mode = b.dataset.m; renderMode(); sendAsm(); });
+let ambTimer;
+const ambM = meter($('amb'), { min:1, max:20, value:10, onInput: v => {
+  ui.level = v; $('ambVal').textContent = v;
+  clearTimeout(ambTimer); ambTimer = setTimeout(sendAsm, 150);
+}});
+$('voice').onchange = sendAsm;
+
+// --- функции ---
+function renderStc(){ $('stcBox').classList.toggle('off', !$('stc').checked); }
+$('stc').onchange = e => { renderStc(); send([0xf8, 0x05, 0x01, e.target.checked ? 0x01 : 0x00, 0x01]); };
+const sendStcCfg = () => send([0xfc, 0x05, +$('stcSens').value, +$('stcTime').value]);
+$('stcSens').onchange = sendStcCfg;
+$('stcTime').onchange = sendStcCfg;
+$('dsee').onchange = e => send([0xe8, 0x02, 0x00, e.target.checked ? 1 : 0]);
+$('wear').onchange = e => send([0xf8, 0x03, 0x00, e.target.checked ? 0x01 : 0x00]);
+$('apo').onchange = e => { const [a,b] = e.target.value.split(',').map(Number); send([0xf8, 0x04, 0x01, a, b]); };
+
+// --- громкость и воспроизведение ---
+let volTimer, playing = false;
+$('vol').classList.add('nozero');
+const volM = meter($('vol'), { min:0, max:30, value:0, floor:0, onInput: v => {
+  $('volVal').textContent = v;
+  clearTimeout(volTimer); volTimer = setTimeout(() => send([0xa8, 0x01, 0x20, v]), 120);
+}});
+function renderPlay(){
+  $('playIcon').innerHTML = playing
+    ? '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>'
+    : '<path d="M7 5l12 7-12 7z"/>';
+  $('playTxt').textContent = playing ? 'PLAY' : 'PAUSE';
+}
+// коды Sony: 01 пауза, 02 следующий, 03 предыдущий, 07 воспроизведение
+$('btnPlay').onclick = () => send([0xa4, 0x01, 0x00, playing ? 0x01 : 0x07]);
+$('btnNext').onclick = () => { send([0xa4, 0x01, 0x00, 0x02]); askTrackSoon(800); };
+$('btnPrev').onclick = () => { send([0xa4, 0x01, 0x00, 0x03]); askTrackSoon(800); };
+
+// --- трек: опрос раз в 10 с во время воспроизведения + по событиям ---
+const meta = {};
+let trackT, trackKey = '';
+function askTrack(){ if (!writer) return; send([0xa6, 0x01, 0x00]); send([0xa6, 0x01, 0x02]); send([0xa6, 0x01, 0x01]); }
+function askTrackSoon(ms = 600){ clearTimeout(trackT); trackT = setTimeout(askTrack, ms); }
+setInterval(() => { if (writer && playing) askTrack(); }, 10000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) askTrackSoon(100); });
+function renderTrack(){
+  $('trackTitle').textContent = meta[0] || '—';
+  $('trackSub').textContent = [meta[2], meta[1]].filter(Boolean).join(' · ');
+}
+const fmt = sec => Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0');
+async function onTrackInfo(){
+  const key = [meta[2], meta[0], meta[1]].join('|');
+  if (!meta[0] || key === trackKey) return;
+  trackKey = key;
+  $('coverImg').hidden = true; $('tDur').textContent = '--:--';
+  const r = await lookup(meta[2], meta[0], meta[1]);
+  if (trackKey !== key || !r) return;
+  if (r.dur) $('tDur').textContent = fmt(r.dur);
+  if (r.art){ $('coverImg').onload = () => $('coverImg').hidden = false; $('coverImg').src = r.art; }
+}
+
+// --- обложка и длительность: Deezer, затем iTunes (JSONP — работает и с file://) ---
+const lookupCache = new Map();
+let jsonpN = 0;
+function jsonp(url, cbParam = 'callback', timeout = 6000){
+  return new Promise((resolve, reject) => {
+    const name = '__xm4cb' + (++jsonpN);
+    const sc = document.createElement('script');
+    const done = () => { delete window[name]; sc.remove(); clearTimeout(t); };
+    const t = setTimeout(() => { done(); reject(new Error('timeout')); }, timeout);
+    window[name] = data => { done(); resolve(data); };
+    sc.onerror = () => { done(); reject(new Error('network')); };
+    sc.src = url + (url.includes('?') ? '&' : '?') + cbParam + '=' + name;
+    document.head.appendChild(sc);
+  });
+}
+const norm = t => (t || '').toLowerCase().replace(/ё/g,'е').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+function bestMatch(items, artist, title){
+  const a = norm(artist), t = norm(title);
+  return items.find(x => norm(x.artist).includes(a) && norm(x.title) === t)
+      || items.find(x => norm(x.artist).includes(a) && norm(x.title).includes(t))
+      || items.find(x => norm(x.title) === t)
+      || null;
+}
+const toItem = {
+  deezer: x => ({ artist:x.artist?.name, title:x.title, album:x.album?.title,
+    dur:x.duration, art:x.album?.cover_big || x.album?.cover_medium }),
+  itunes: x => ({ artist:x.artistName, title:x.trackName, album:x.collectionName,
+    dur:Math.round((x.trackTimeMillis||0)/1000), art:(x.artworkUrl100||'').replace('100x100bb','400x400bb') })
+};
+async function tryLookup(name, url, kind, listKey, artist, title){
+  try {
+    const d = await jsonp(url);
+    if (d.error) log('поиск ' + name + ': ошибка ' + JSON.stringify(d.error));
+    const items = (d[listKey] || []).map(toItem[kind]);
+    const res = bestMatch(items, artist, title);
+    log('поиск ' + name + ': найдено ' + items.length
+      + (items[0] ? ', первый: ' + items[0].artist + ' — ' + items[0].title + ' (' + items[0].dur + ' с)' : '')
+      + (res ? ' → совпадение' : ' → совпадения нет'));
+    return res;
+  } catch(e){ log('поиск ' + name + ': недоступен (' + e.message + ')'); return null; }
+}
+async function lookup(artist, title, album){
+  const key = [artist, title, album].join('|');
+  if (lookupCache.has(key)) return lookupCache.get(key);
+  const a = norm(artist), t = norm(title);              // без знаков препинания: «Давай за ...» → «давай за»
+  const plain = encodeURIComponent([a, t].filter(Boolean).join(' '));
+  const strict = encodeURIComponent((a ? 'artist:"' + a + '" ' : '') + 'track:"' + t + '"');
+  const attempts = [
+    ['Deezer (точный)', 'https://api.deezer.com/search?q=' + strict + '&limit=10&output=jsonp', 'deezer', 'data'],
+    ['Deezer (простой)', 'https://api.deezer.com/search?q=' + plain + '&limit=15&output=jsonp', 'deezer', 'data'],
+    ['iTunes', 'https://itunes.apple.com/search?term=' + plain + '&entity=song&limit=15', 'itunes', 'results'],
+    ['iTunes KZ', 'https://itunes.apple.com/search?term=' + plain + '&entity=song&limit=15&country=kz', 'itunes', 'results'],
+  ];
+  let res = null;
+  for (const [name, url, kind, listKey] of attempts){
+    res = await tryLookup(name, url, kind, listKey, artist, title);
+    if (res) break;
+  }
+  lookupCache.set(key, res);
+  return res;
+}
+
+// ================= Визуалайзер =================
+// SIM — имитация по состоянию, громкости и форме эквалайзера; LIVE — спектр системного звука через захват экрана
+const viz = { cv:$('viz'), bars:56, h:new Float32Array(56), phase:[], live:null, analyser:null, data:null };
+for (let i = 0; i < viz.bars; i++) viz.phase.push([Math.random()*6.28, 0.6 + Math.random()*1.6, Math.random()*6.28]);
+let beat = 0, nextBeat = 0;
+function eqShape(f){ // f 0..1 по ширине -> поправка от эквалайзера (полосы 400…16k + Clear Bass внизу)
+  const pts = [eq.vals[0], eq.vals[1], eq.vals[2], eq.vals[3], eq.vals[4], eq.vals[5]];
+  const x = f * (pts.length - 1), i = Math.floor(x), t = x - i;
+  const v = pts[i] + ((pts[Math.min(i+1, pts.length-1)] - pts[i]) * t);
+  return 1 + v / 22;
+}
+function simTarget(i, now){
+  const f = i / (viz.bars - 1);
+  const [p1, sp, p2] = viz.phase[i];
+  const tilt = 1.05 - f * 0.55;                                   // низы громче верхов
+  const wob = 0.45 + 0.3*Math.sin(now*0.0021*sp + p1) + 0.2*Math.sin(now*0.0057*sp + p2);
+  const kick = f < 0.25 ? beat * (1 - f*3) : beat * 0.25;
+  const vol = 0.35 + 0.65 * (volM.value / 30);
+  return Math.max(0, Math.min(1, (wob * tilt + kick) * vol * eqShape(f) * (0.85 + Math.random()*0.15)));
+}
+function liveTarget(i){
+  const a = viz.analyser, d = viz.data;
+  const n = d.length, f0 = i / viz.bars, f1 = (i + 1) / viz.bars;
+  const lo = Math.floor(Math.pow(f0, 2) * n * 0.75), hi = Math.max(lo + 1, Math.floor(Math.pow(f1, 2) * n * 0.75));
+  let m = 0; for (let k = lo; k < hi; k++) m = Math.max(m, d[k]);
+  return m / 255;
+}
+function drawViz(now){
+  requestAnimationFrame(drawViz);
+  if (document.hidden) return;
+  const cv = viz.cv, dpr = devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== W * dpr || cv.height !== H * dpr){ cv.width = W * dpr; cv.height = H * dpr; }
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+  if (viz.live) viz.analyser.getByteFrequencyData(viz.data);
+  if (!viz.live && playing && now > nextBeat){ beat = 0.55; nextBeat = now + 380 + Math.random()*260; }
+  beat *= 0.9;
+  const active = viz.live || playing;
+  const gap = 3, bw = (W - gap * (viz.bars - 1)) / viz.bars, mid = H * 0.62;
+  // сетка
+  g.strokeStyle = 'rgba(255,255,255,.04)'; g.lineWidth = 1;
+  for (let y = 0.5; y < H; y += 11){ g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+  for (let i = 0; i < viz.bars; i++){
+    const target = active ? (viz.live ? liveTarget(i) : simTarget(i, now)) : 0.02 + 0.015*Math.sin(now*0.002 + i*0.4);
+    const h = viz.h[i] += (target - viz.h[i]) * (target > viz.h[i] ? 0.45 : 0.12);
+    const x = i * (bw + gap), up = Math.max(1.5, h * (mid - 6)), dn = up * 0.32;
+    const grad = g.createLinearGradient(0, mid - up, 0, mid);
+    grad.addColorStop(0, '#ffb27a'); grad.addColorStop(1, '#ff6a1a');
+    g.fillStyle = grad;
+    g.shadowColor = 'rgba(255,106,26,.55)'; g.shadowBlur = 8;
+    g.fillRect(x, mid - up, bw, up);
+    g.shadowBlur = 0;
+    g.fillStyle = 'rgba(57,216,240,.22)';                           // отражение
+    g.fillRect(x, mid + 2, bw, dn);
+  }
+  g.fillStyle = 'rgba(255,255,255,.08)'; g.fillRect(0, mid, W, 1);
+}
+requestAnimationFrame(drawViz);
+
+$('vizMode').onclick = async () => {
+  if (viz.live){ stopLive(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true, systemAudio:'include' });
+    const at = stream.getAudioTracks()[0];
+    stream.getVideoTracks().forEach(t => t.stop());
+    if (!at){ toast('Звук не захвачен: отметь «Поделиться системным звуком»'); return; }
+    const ac = new AudioContext();
+    const src = ac.createMediaStreamSource(new MediaStream([at]));
+    const an = ac.createAnalyser(); an.fftSize = 1024; an.smoothingTimeConstant = 0.75;
+    src.connect(an);
+    viz.live = { ac, at }; viz.analyser = an; viz.data = new Uint8Array(an.frequencyBinCount);
+    at.onended = stopLive;
+    $('vizMode').classList.add('on'); $('vizMode').textContent = 'LIVE ●';
+  } catch(e){ if (e.name !== 'NotAllowedError') toast('Захват звука недоступен: ' + e.message); }
+};
+function stopLive(){
+  if (!viz.live) return;
+  try { viz.live.at.stop(); viz.live.ac.close(); } catch {}
+  viz.live = null; viz.analyser = null;
+  $('vizMode').classList.remove('on'); $('vizMode').textContent = 'Живой звук';
+}
+
+// ================= Уведомление о низком заряде =================
+const store = { get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+                set(k,v){ try { localStorage.setItem(k,v); } catch {} } };
+let notified = false, blinkT = null;
+$('notif').value = store.get('xm4-notif') ?? '20';
+async function ensurePerm(){
+  if (!('Notification' in window)) { $('notifHint').textContent = 'Браузер не поддерживает уведомления'; return false; }
+  if (Notification.permission === 'default') await Notification.requestPermission();
+  if (Notification.permission !== 'granted') { $('notifHint').textContent = 'Пуш запрещён — будет плашка на странице'; return false; }
+  $('notifHint').textContent = 'Пуш разрешён до закрытия страницы'; return true;
+}
+$('notif').onchange = async e => {
+  store.set('xm4-notif', e.target.value); notified = false;
+  if (+e.target.value && await ensurePerm()) toast('Уведомления включены');
+};
+function lowBanner(text){
+  $('lowText').textContent = text; $('low').hidden = false;
+  clearInterval(blinkT); let on = false; const base = document.title;
+  blinkT = setInterval(() => { document.title = (on = !on) ? '⚠ Низкий заряд!' : base; }, 1000);
+}
+$('lowClose').onclick = () => { $('low').hidden = true; clearInterval(blinkT); blinkT = null; };
+document.addEventListener('visibilitychange', () => { if (!document.hidden && blinkT){ clearInterval(blinkT); blinkT = null; } });
+function checkBattery(level, charging){
+  const th = +$('notif').value;
+  if (!th || charging || level > th + 5) { notified = false; return; }
+  if (level <= th && !notified){
+    notified = true;
+    const body = 'WH-1000XM4: осталось ' + level + '%. Пора на зарядку.';
+    if ('Notification' in window && Notification.permission === 'granted')
+      new Notification('Наушники садятся', { body, tag: 'xm4-batt', requireInteraction: level <= 10 });
+    lowBanner(body);
+  }
+}
+
+// ================= Эквалайзер =================
+const PRESETS = [[0x00,'OFF'],[0x10,'Bright'],[0x11,'Excited'],[0x12,'Mellow'],[0x13,'Relaxed'],[0x14,'Vocal'],
+  [0x15,'Treble+'],[0x16,'Bass+'],[0x17,'Speech'],[0xa0,'Manual'],[0xa1,'Custom 1'],[0xa2,'Custom 2']];
+const BANDS = ['C.BASS','400','1K','2.5K','6.3K','16K'];
+const eq = { preset:0, vals:[0,0,0,0,0,0] };
+const eqMeters = [];
+const sgn = v => (v > 0 ? '+' : '') + v;
+function renderPills(){
+  const box = $('pills'); box.innerHTML = '';
+  PRESETS.forEach(([code,name]) => {
+    const b = document.createElement('button');
+    b.className = 'pill' + (eq.preset === code ? ' on' : '');
+    b.textContent = name;
+    b.onclick = () => { eq.preset = code; renderPills(); send([0x58, 0x01, code, 0x00]); send([0x56, 0x01]); };
+    box.appendChild(b);
+  });
+}
+let eqTimer;
+function buildEq(){
+  const box = $('eq');
+  BANDS.forEach((name, i) => {
+    const col = document.createElement('div');
+    if (i === 0) col.className = 'cb';
+    col.innerHTML = `<div class="v">0</div><div class="meter" tabindex="0" role="slider" aria-label="${name}"></div><div class="f">${name}</div>`;
+    box.appendChild(col);
+    const m = meter(col.querySelector('.meter'), { min:-10, max:10, center:0, vertical:true, value:0, onInput: v => {
+      eq.vals[i] = v; col.querySelector('.v').textContent = sgn(v);
+      if (eq.preset < 0xa0){ eq.preset = 0xa0; renderPills(); }
+      clearTimeout(eqTimer); eqTimer = setTimeout(sendBands, 200);
+    }});
+    m.label = col.querySelector('.v');
+    eqMeters.push(m);
+  });
+}
+function renderEqValues(){ eqMeters.forEach((m, i) => { m.set(eq.vals[i]); m.label.textContent = sgn(eq.vals[i]); }); }
+function sendBands(){ send([0x58, 0x01, eq.preset >= 0xa0 ? eq.preset : 0xa0, 0x06, ...eq.vals.map(v => v + 10)]); }
+$('eqReset').onclick = () => { eq.vals.fill(0); renderEqValues(); sendBands(); toast('Полосы сброшены'); };
+buildEq(); renderPills();
+
+// ================= Журнал =================
+$('rawSend').onclick = () => {
+  const bytes = $('raw').value.trim().split(/[\s,]+/).filter(Boolean).map(x => parseInt(x, 16));
+  if (!bytes.length || bytes.some(isNaN)) return log('! неверный hex');
+  send(bytes);
+};
+$('logClear').onclick = () => $('log').textContent = '';
+$('scan').onclick = async () => {
+  log('--- скан f6 00..1f ---');
+  for (let i = 0; i < 0x20; i++) await send([0xf6, i]);
+  log('--- скан fa 00..1f ---');
+  for (let i = 0; i < 0x20; i++) await send([0xfa, i]);
+  log('--- скан закончен ---');
+};
+$('scanMedia').onclick = async () => {
+  log('--- скан медиа ---');
+  for (const c of [0xa0, 0xa2, 0xa6])
+    for (let i = 0; i < 0x08; i++){ await send([c, i]); await send([c, i, 0x00]); }
+  log('--- скан закончен ---');
+};
+$('scanTags').onclick = async () => {
+  log('--- скан тегов ---');
+  for (let i = 0; i < 0x10; i++) if (i !== 0x00) await send([0xa6, 0x01, i]);
+  for (let i = 0; i < 0x08; i++) await send([0xa6, 0x01, 0x00, i]);
+  log('--- скан закончен ---');
+};
+
+// ================= Подключение =================
+function setState(text, kind){ $('state').textContent = text; $('dot').className = 'dot' + (kind ? ' ' + kind : ''); }
+function setConnectedUI(on){
+  $('btnConnect').disabled = $('btnAll').disabled = on;
+  $('btnDisconnect').disabled = $('btnRefresh').disabled = $('rawSend').disabled = !on;
+  $('controls').classList.toggle('disabled', !on);
+}
+async function openPort(p){
+  port = p;
+  const info = p.getInfo();
+  const sid = String(info.bluetoothServiceClassId || '').toLowerCase();
+  log('порт: ' + JSON.stringify(info));
+  $('chan').textContent = UUID_NAMES[sid] || (info.bluetoothServiceClassId ? 'BT' : 'COM');
+  setState('Открываю канал…');
+  await p.open({ baudRate: 9600 });
+  reader = p.readable.getReader();
+  writer = p.writable.getWriter();
+  seq = 0; alive = false; queue = Promise.resolve();
+  readLoop();
+  setState('Жду ответа…', 'ok');
+  setConnectedUI(true);
+  send([0x00, 0x00]);
+  refresh();
+  setTimeout(() => {
+    if (writer && !alive) $('warn').textContent = 'Порт открыт, но наушники не ответили. Отключись и выбери другую службу.';
+  }, 5000);
+}
+async function connect(showAll){
+  $('warn').textContent = '';
+  try {
+    const opts = { allowedBluetoothServiceClassIds: UUIDS };
+    if (!showAll) opts.filters = UUIDS.map(u => ({ bluetoothServiceClassId: u }));
+    await openPort(await navigator.serial.requestPort(opts));
+  } catch(e){
+    log('! ' + e.message);
+    if (e.name !== 'NotFoundError') $('warn').textContent = 'Не удалось подключиться: ' + e.message;
+    port = null; setState('Не подключено', 'bad');
+  }
+}
+async function disconnect(silent){
+  const p = port; port = null;
+  try { reader && await reader.cancel(); } catch{}
+  try { reader && reader.releaseLock(); } catch{}
+  try { writer && writer.releaseLock(); } catch{}
+  try { p && await p.close(); } catch{}
+  reader = writer = null; alive = false; playing = false; renderPlay();
+  setState(silent ? 'Соединение потеряно' : 'Не подключено', silent ? 'bad' : '');
+  setConnectedUI(false);
+}
+async function autoConnect(){
+  if (!('serial' in navigator)) return;
+  const ports = await navigator.serial.getPorts();
+  const known = ports.find(p => String(p.getInfo().bluetoothServiceClassId || '').toLowerCase() === UUID_HPC)
+             || ports.find(p => UUIDS.includes(String(p.getInfo().bluetoothServiceClassId || '').toLowerCase()));
+  if (!known) return;
+  try { await openPort(known); }
+  catch(e){ log('автоподключение не удалось: ' + e.message); port = null; setState('Не подключено'); setConnectedUI(false); }
+}
+
+$('btnConnect').onclick = () => connect(false);
+$('btnAll').onclick = () => connect(true);
+$('btnDisconnect').onclick = () => disconnect(false);
+$('btnRefresh').onclick = () => { refresh(); toast('Обновляю'); };
+setInterval(() => { if (writer) send([0x10, 0x00]); }, 60000);
+
+if (!('serial' in navigator)){
+  $('btnConnect').disabled = $('btnAll').disabled = true;
+  $('warn').textContent = 'Этот браузер не поддерживает Web Serial. Нужен Chrome или Edge (desktop), версия 117+.';
+} else {
+  navigator.serial.addEventListener('connect', () => { if (!port) autoConnect(); });
+  autoConnect();
+}
+renderMode(); renderStc(); renderPlay();
+</script>
+</body>
+</html>
