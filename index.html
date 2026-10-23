@@ -917,7 +917,9 @@ function checkBattery(level, charging){
 
 // ================= Эквалайзер =================
 const PRESETS = [[0x00,'OFF'],[0x10,'Bright'],[0x11,'Excited'],[0x12,'Mellow'],[0x13,'Relaxed'],[0x14,'Vocal'],
-  [0x15,'Treble+'],[0x16,'Bass+'],[0x17,'Speech'],[0xa0,'Manual'],[0xa1,'Custom 1'],[0xa2,'Custom 2']];
+  [0x15,'Treble+'],[0x16,'Bass+'],[0x17,'Speech'],[0xa1,'Custom 1'],[0xa2,'Custom 2']];
+// полосы XM4 принимает только в ячейки Custom 1/2 (a1/a2); код a0 («Ручной») не работает
+const isCustom = p => p === 0xa1 || p === 0xa2;
 const BANDS = ['C.BASS','400','1K','2.5K','6.3K','16K'];
 const eq = { preset:0, vals:[0,0,0,0,0,0] };
 const eqMeters = [];
@@ -942,7 +944,7 @@ function buildEq(){
     box.appendChild(col);
     const m = meter(col.querySelector('.meter'), { min:-10, max:10, center:0, vertical:true, value:0, onInput: v => {
       eq.vals[i] = v; col.querySelector('.v').textContent = sgn(v);
-      if (eq.preset < 0xa0){ eq.preset = 0xa0; renderPills(); }
+      if (!isCustom(eq.preset)){ eq.preset = 0xa1; renderPills(); }
       clearTimeout(eqTimer); eqTimer = setTimeout(sendBands, 200);
     }});
     m.label = col.querySelector('.v');
@@ -950,7 +952,7 @@ function buildEq(){
   });
 }
 function renderEqValues(){ eqMeters.forEach((m, i) => { m.set(eq.vals[i]); m.label.textContent = sgn(eq.vals[i]); }); }
-function sendBands(){ send([0x58, 0x01, eq.preset >= 0xa0 ? eq.preset : 0xa0, 0x06, ...eq.vals.map(v => v + 10)]); }
+function sendBands(){ send([0x58, 0x01, isCustom(eq.preset) ? eq.preset : 0xa1, 0x06, ...eq.vals.map(v => v + 10)]); }
 $('eqReset').onclick = () => { eq.vals.fill(0); renderEqValues(); sendBands(); toast(L('Полосы сброшены')); };
 buildEq(); renderPills();
 
