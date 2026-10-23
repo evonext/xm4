@@ -1290,7 +1290,8 @@ async function ymArtCut(artistId){
   try {
     if (!artCache.has(artistId)){
       // «вырезка» имеет адрес вида …/<хэш>.c.<id>/… (обычное фото — .p.); ищем в нескольких методах по очереди
-      const isCut = x => /\.c\.\d+/.test(x.url) || /vibe|transparent|cutout/i.test(x.path);
+      const isCut = x => /\.c\.\d+/.test(x.url) || /vibe|transparent|cutout/i.test(x.path)
+        || (/customWave/i.test(x.path) && !/default/i.test(x.url));   // своя картинка волны исполнителя
       let pick = null;
       for (const [name, path] of [['brief-info', '/artists/' + artistId + '/brief-info'],
                                   ['artist', '/artists/' + artistId],
