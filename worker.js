@@ -44,12 +44,12 @@ export default {
       });
       const raw = await res.text();
       const html = raw.replace(/\\u002F/gi, '/').replace(/%2F/gi, '/').replace(/\\\//g, '/');
-      const m = html.match(/avatars\.yandex\.net\/get-music-content\/\d+\/[0-9a-f]+\.c\.\d+/);
+      const m = html.match(/get-music-content\/\d+\/[0-9a-f]+\.c\.\d+/);
       // сводка: какие типы картинок вида <хэш>.<буква>.<номер> есть на странице
       const types = {};
       for (const x of html.matchAll(/[0-9a-f]{8}\.([a-z])\.\d+/g)) types[x[1]] = (types[x[1]] || 0) + 1;
       const result = { status: res.status, size: raw.length, captcha: /captcha|showcaptcha/i.test(raw), types,
-                       url: m ? 'https://' + m[0] + '/orig' : null };
+                       url: m ? 'https://avatars.yandex.net/' + m[0] + '/orig' : null };
       return new Response(JSON.stringify({ result }), { headers: { ...cors, 'Content-Type': 'application/json' } });
     }
 
