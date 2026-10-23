@@ -1306,7 +1306,7 @@ async function ymArtCut(artistId){
       if (!pick){
         try {
           const r = await ymApi('/xm4/artist-cut/' + artistId);
-          log('исполнитель ' + artistId + ' [страница]: HTTP ' + r.status + ', ' + r.size + ' байт' + (r.captcha ? ', капча' : '') + ', вырезка: ' + (r.url || 'нет'));
+          log('исполнитель ' + artistId + ' [страница]: HTTP ' + r.status + ', ' + r.size + ' байт' + (r.captcha ? ', капча' : '') + ', типы картинок: ' + JSON.stringify(r.types || {}) + ', вырезка: ' + (r.url || 'нет'));
           if (r.url) pick = { url: r.url };
         } catch(e){ log('исполнитель ' + artistId + ' [страница]: ' + e.message); }
       }
