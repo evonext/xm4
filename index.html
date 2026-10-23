@@ -312,7 +312,7 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
         <div class="srow" style="margin-top:0"><span>Чувствительность</span>
           <select id="stcSens"><option value="0">Авто</option><option value="1">Высокая</option><option value="2">Низкая</option></select></div>
         <div class="srow"><span>Выход из режима</span>
-          <select id="stcTime"><option value="0">15 с</option><option value="1">30 с</option><option value="2">1 мин</option><option value="3">Не выходить</option></select></div>
+          <select id="stcTime"><option value="0">15 с</option><option value="1">30 с</option><option value="2">1 мин</option></select></div>
       </div>
       <div class="trow">
         <div class="t"><div>DSEE Extreme</div><small>Восстановление сжатого звука</small></div>
@@ -597,7 +597,11 @@ function handlePayload(p){
     if (p[1] === 0x03 && p.length >= 4) $('wear').checked = p[3] === 0x01;
     if (p[1] === 0x04 && p.length >= 5) $('apo').value = p[3] + ',' + p[4];
   }
-  if ((c === 0xfb || c === 0xfd) && p[1] === 0x05 && p.length >= 4){ $('stcSens').value = p[2]; $('stcTime').value = p[3]; }
+  // настройки Speak-to-Chat: fb/fd 05 b0 b1 таймер b3 (таймер: 00 15 с, 01 30 с, 02 1 мин)
+  if ((c === 0xfb || c === 0xfd) && p[1] === 0x05 && p.length >= 6){
+    stcCfg = p.slice(2, 6); stcKnown = true;
+    $('stcSens').value = p[2]; $('stcTime').value = p[4];
+  }
 }
 
 // ================= Команды =================
@@ -651,7 +655,15 @@ $('voice').onchange = sendAsm;
 // --- функции ---
 function renderStc(){ $('stcBox').classList.toggle('off', !$('stc').checked); }
 $('stc').onchange = e => { renderStc(); send([0xf8, 0x05, 0x01, e.target.checked ? 0x01 : 0x00, 0x01]); };
-const sendStcCfg = () => send([0xfc, 0x05, +$('stcSens').value, +$('stcTime').value]);
+// отправляем все 4 байта, меняя только выбранное; неизвестные байты возвращаем такими, какими их прислали наушники
+let stcCfg = [0x00, 0x00, 0x01, 0x00], stcKnown = false;
+function sendStcCfg(){
+  if (!stcKnown){ send([0xfa, 0x05]); toast(L('Обновляю')); return; }
+  const cfg = stcCfg.slice();
+  cfg[0] = +$('stcSens').value;
+  cfg[2] = +$('stcTime').value;
+  send([0xfc, 0x05, ...cfg]);
+}
 $('stcSens').onchange = sendStcCfg;
 $('stcTime').onchange = sendStcCfg;
 $('dsee').onchange = e => send([0xe8, 0x02, 0x00, e.target.checked ? 1 : 0]);
