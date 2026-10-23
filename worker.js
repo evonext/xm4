@@ -14,7 +14,8 @@ const ALLOWED_PATHS = [
   /^\/users\/\d+\/playlists\/\d+\/change-relative$/,
   /^\/tracks\/\d+\/similar$/,
   /^\/genres$/,
-  /^\/artists\/\d+\/brief-info$/,
+  /^\/artists\/\d+(\/brief-info)?$/,
+  /^\/rotor\/station\/artist:\d+\/info$/,
 ];
 
 export default {

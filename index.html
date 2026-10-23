@@ -91,12 +91,13 @@ button:disabled{opacity:.35;cursor:not-allowed}
 
 /* ---------- воспроизведение ---------- */
 .np{display:grid;grid-template-columns:96px 1fr;gap:16px;align-items:center}
-.cover{width:96px;height:96px;border-radius:4px;background:var(--bg);border:1px solid var(--line2);position:relative;overflow:hidden;display:grid;place-items:center}
+.cover{color:inherit;text-decoration:none;width:96px;height:96px;border-radius:4px;background:var(--bg);border:1px solid var(--line2);position:relative;overflow:hidden;display:grid;place-items:center}
 .cover svg{width:34px;height:34px;stroke:var(--dim);fill:none;stroke-width:1.4}
 .cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .cover::after{content:"";position:absolute;inset:0;pointer-events:none;
   background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px)}
-.track{font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.005em}
+.trackrow{display:flex;min-width:0}
+.track{display:block;max-width:100%;font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.005em;color:inherit;text-decoration:none}
 .tsub{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;min-height:19px}
 .chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
 .chip{font:600 10.5px/1 var(--mono);letter-spacing:.1em;padding:5px 8px;border-radius:3px;background:var(--bg);border:1px solid var(--line2);color:var(--muted)}
@@ -105,7 +106,7 @@ button:disabled{opacity:.35;cursor:not-allowed}
 .viz-wrap{position:relative;overflow:hidden;margin-top:14px;border:1px solid var(--line);border-radius:4px;background:
   linear-gradient(180deg,rgba(255,255,255,.015),transparent),var(--bg)}
 #viz{display:block;width:100%;height:110px;position:relative;z-index:1}
-.a-play{isolation:isolate}
+.a-play{isolation:isolate;z-index:3}
 .artcut{position:absolute;top:0;bottom:0;right:0;width:min(560px,55%);z-index:-1;pointer-events:none;opacity:0;transition:opacity .6s;overflow:hidden;border-radius:6px}
 .artcut.show{opacity:.55}
 @media (max-width:780px){ .artcut{width:70%} .artcut.show{opacity:.35} }
@@ -203,10 +204,10 @@ input[type=text]{font:12px var(--mono);padding:7px 10px;border-radius:4px;border
 @media (max-width:780px){ .plmenu{min-width:min(220px,86vw)} }
 .simmenu button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .simmenu button span i{font-style:normal;color:var(--muted)}
-.linked{cursor:pointer}
-.track.linked:hover,.tsub .lk:hover{color:var(--acc)}
-.cover.linked:hover{border-color:var(--acc)}
-.tsub .lk{cursor:pointer}
+.tsub a{color:inherit;text-decoration:none}
+.track[href]:hover,.tsub a[href]:hover{color:var(--acc)}
+.track[href]:focus-visible,.tsub a[href]:focus-visible,.cover[href]:focus-visible{outline:1px solid var(--cy);outline-offset:2px}
+.cover[href]:hover{border-color:var(--acc)}
 .plmenu .empty{padding:8px 10px;color:var(--muted);font-size:12.5px}
 .like svg{width:14px;height:14px;fill:none;stroke:var(--muted);stroke-width:2}
 .like.on{border-color:var(--bad);box-shadow:0 0 10px rgba(255,77,94,.35) inset}
@@ -307,9 +308,9 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
       <div class="artcut" id="artCut" hidden><img id="artCutImg" alt="" referrerpolicy="no-referrer"></div>
       <div class="ph"><b>01</b>Воспроизведение<span class="grow"></span></div>
       <div class="np">
-        <div class="cover"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></svg><img id="coverImg" alt="" hidden></div>
+        <a class="cover" id="coverLink"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></svg><img id="coverImg" alt="" hidden></a>
         <div style="min-width:0">
-          <div class="track" id="trackTitle">—</div>
+          <div class="trackrow"><a class="track" id="trackTitle">—</a></div>
           <div class="tsub" id="trackSub"></div>
           <div class="chips">
             <span class="chip play">STATE <b id="playTxt">PAUSE</b></span>
@@ -801,7 +802,7 @@ function renderTrack(){
   const sub = $('trackSub'); sub.innerHTML = '';
   [['art', meta[2]], ['alb', meta[1]]].filter(([, v]) => v).forEach(([cls, v], i) => {
     if (i) sub.appendChild(document.createTextNode(' · '));
-    const sp = document.createElement('span'); sp.className = cls; sp.textContent = v; sub.appendChild(sp);
+    const sp = document.createElement('a'); sp.className = cls; sp.textContent = v; sub.appendChild(sp);
   });
   if (typeof ymLinks === 'function') ymLinks();
 }
@@ -1188,25 +1189,19 @@ document.addEventListener('click', e => { if (!e.target.closest('.plwrap')){ if 
 // --- ссылки на трек, исполнителя и альбом в Яндекс Музыке ---
 const YM_WEB = 'https://music.yandex.ru';
 const openTab = u => window.open(u, '_blank', 'noopener');
+function setLink(el, url, title){
+  if (!el) return;
+  if (url){ el.href = url; el.target = '_blank'; el.rel = 'noopener'; el.title = title; }
+  else { el.removeAttribute('href'); el.removeAttribute('target'); el.removeAttribute('rel'); el.removeAttribute('title'); }
+}
 function ymLinks(){
   const t = ym.cur && ym.cur[0];
-  const on = !!(t && t.albumId);
-  $('trackTitle').classList.toggle('linked', on);
-  document.querySelector('.cover').classList.toggle('linked', on);
-  $('trackTitle').title = on ? L('Открыть в Яндекс Музыке') : '';
-  document.querySelector('.cover').title = on ? L('Открыть в Яндекс Музыке') : '';
-  const art = $('trackSub').querySelector('.art'), alb = $('trackSub').querySelector('.alb');
-  if (art){ art.classList.toggle('lk', !!(t && t.artistId)); art.title = t && t.artistId ? L('Открыть исполнителя в Яндекс Музыке') : ''; }
-  if (alb){ alb.classList.toggle('lk', on); alb.title = on ? L('Открыть альбом в Яндекс Музыке') : ''; }
+  const track = t && t.albumId ? YM_WEB + '/album/' + t.albumId + '/track/' + t.id : '';
+  setLink($('trackTitle'), track, L('Открыть в Яндекс Музыке'));
+  setLink($('coverLink'), track, L('Открыть в Яндекс Музыке'));
+  setLink($('trackSub').querySelector('.art'), t && t.artistId ? YM_WEB + '/artist/' + t.artistId : '', L('Открыть исполнителя в Яндекс Музыке'));
+  setLink($('trackSub').querySelector('.alb'), t && t.albumId ? YM_WEB + '/album/' + t.albumId : '', L('Открыть альбом в Яндекс Музыке'));
 }
-const openTrack = () => { const t = ym.cur && ym.cur[0]; if (t && t.albumId) openTab(YM_WEB + '/album/' + t.albumId + '/track/' + t.id); };
-$('trackTitle').addEventListener('click', openTrack);
-document.querySelector('.cover').addEventListener('click', openTrack);
-$('trackSub').addEventListener('click', e => {
-  const t = ym.cur && ym.cur[0]; if (!t) return;
-  if (e.target.closest('.art.lk') && t.artistId) openTab(YM_WEB + '/artist/' + t.artistId);
-  else if (e.target.closest('.alb.lk') && t.albumId) openTab(YM_WEB + '/album/' + t.albumId);
-});
 // --- жанр: код из каталога → человеческое название (справочник /genres, один раз) ---
 let genreNames = null;
 async function ymGenre(code){
@@ -1294,10 +1289,19 @@ async function ymArtCut(artistId){
   if (!artistId){ artCut(null); return; }
   try {
     if (!artCache.has(artistId)){
-      const info = await ymApi('/artists/' + artistId + '/brief-info');
-      const imgs = findImages(info);
-      log('исполнитель ' + artistId + ': картинки — ' + (imgs.length ? imgs.map(x => x.path + ' = ' + x.url).join(' | ') : 'нет'));
-      const pick = imgs.find(x => /vibe|transparent|cutout|cut[A-Z_]|png/i.test(x.path));
+      // «вырезка» имеет адрес вида …/<хэш>.c.<id>/… (обычное фото — .p.); ищем в нескольких методах по очереди
+      const isCut = x => /\.c\.\d+/.test(x.url) || /vibe|transparent|cutout/i.test(x.path);
+      let pick = null;
+      for (const [name, path] of [['brief-info', '/artists/' + artistId + '/brief-info'],
+                                  ['artist', '/artists/' + artistId],
+                                  ['station', '/rotor/station/artist:' + artistId + '/info']]){
+        let imgs;
+        try { imgs = findImages(await ymApi(path)); }
+        catch(e){ log('исполнитель ' + artistId + ' [' + name + ']: ' + e.message); continue; }
+        log('исполнитель ' + artistId + ' [' + name + ']: картинки — ' + (imgs.length ? imgs.map(x => x.path + ' = ' + x.url).join(' | ') : 'нет'));
+        pick = imgs.find(isCut);
+        if (pick) break;
+      }
       artCache.set(artistId, pick ? pick.url : null);
     }
     if (ym.cur && String(ym.cur[0].artistId) === String(artistId)) artCut(artCache.get(artistId));
