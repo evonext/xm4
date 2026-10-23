@@ -1,6 +1,6 @@
 // Посредник для XM4 Control → Яндекс Музыка (Cloudflare Workers, бесплатный тариф).
 // Пропускает только запросы со страницы XM4 Control и только к нужным методам:
-// статус аккаунта, поиск треков, лайки и дизлайки, список плейлистов и добавление трека в плейлист.
+// статус аккаунта, поиск треков, лайки и дизлайки, плейлисты, похожие треки и справочник жанров.
 // Токен не хранит: он приходит в заголовке каждого запроса и уходит дальше в api.music.yandex.net.
 
 const ALLOWED_ORIGIN = 'https://evonext.github.io';
@@ -12,6 +12,8 @@ const ALLOWED_PATHS = [
   /^\/users\/\d+\/(likes|dislikes)\/tracks\/(add-multiple|remove)$/,
   /^\/users\/\d+\/playlists\/list$/,
   /^\/users\/\d+\/playlists\/\d+\/change-relative$/,
+  /^\/tracks\/\d+\/similar$/,
+  /^\/genres$/,
 ];
 
 export default {

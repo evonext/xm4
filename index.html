@@ -188,6 +188,15 @@ input[type=text]{font:12px var(--mono);padding:7px 10px;border-radius:4px;border
 .plmenu button{display:flex;justify-content:space-between;gap:12px;width:100%;text-align:left;border:0;background:transparent;padding:7px 10px;font-size:13px}
 .plmenu button:hover{background:var(--bg);color:var(--acc)}
 .plmenu button small{font:11px var(--mono);color:var(--muted)}
+.chip[hidden]{display:none}
+.simmenu{min-width:min(300px,86vw);max-width:min(420px,86vw);left:auto;right:0}
+@media (max-width:780px){ .plmenu{min-width:min(220px,86vw)} }
+.simmenu button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.simmenu button span i{font-style:normal;color:var(--muted)}
+.linked{cursor:pointer}
+.track.linked:hover,.tsub .lk:hover{color:var(--acc)}
+.cover.linked:hover{border-color:var(--acc)}
+.tsub .lk{cursor:pointer}
 .plmenu .empty{padding:8px 10px;color:var(--muted);font-size:12.5px}
 .like svg{width:14px;height:14px;fill:none;stroke:var(--muted);stroke-width:2}
 .like.on{border-color:var(--bad);box-shadow:0 0 10px rgba(255,77,94,.35) inset}
@@ -294,11 +303,14 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
           <div class="chips">
             <span class="chip play">STATE <b id="playTxt">PAUSE</b></span>
             <span class="chip">DUR <b id="tDur">--:--</b></span>
+            <span class="chip" id="genreChip" hidden>GENRE <b id="tGenre"></b></span>
             <span class="ymbtns" id="ymBtns" hidden>
               <button class="like" id="btnLike" title="Лайк в Яндекс Музыке (H)" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.6 3.4 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg></button>
               <button class="like dis" id="btnDislike" title="Не рекомендовать (J)" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6 18L18 6"/></svg></button>
               <span class="plwrap"><button class="like pl" id="btnPl" title="Добавить в плейлист" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 7h11M4 12h11M4 17h7M18 14v7M14.5 17.5h7"/></svg></button>
                 <div class="plmenu" id="plMenu" hidden></div></span>
+              <span class="plwrap"><button class="like sim" id="btnSim" title="Похожие треки" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="4.5"/><circle cx="15.5" cy="15.5" r="4.5"/></svg></button>
+                <div class="plmenu simmenu" id="simMenu" hidden></div></span>
             </span>
           </div>
         </div>
@@ -458,7 +470,8 @@ const EN = {
   'Получи токен по ссылке':'Get a token at', ': войди в аккаунт, и в адресной строке появится':': sign in, and the address bar will show',
   'Не рекомендовать (J)':"Don't recommend (J)", 'не рекомендовать':"don't recommend", 'Добавить в плейлист':'Add to playlist',
   'Трек больше не будет рекомендоваться':'Track will no longer be recommended', 'Рекомендации трека возвращены':'Track recommendations restored',
-  'Добавлено в «{0}»':'Added to “{0}”', 'Плейлистов нет':'No playlists', 'Загружаю…':'Loading…',
+  'Добавлено в «{0}»':'Added to “{0}”', 'Плейлистов нет':'No playlists', 'Загружаю…':'Loading…', 'Похожие треки':'Similar tracks', 'Похожих треков нет':'No similar tracks',
+  'Открыть в Яндекс Музыке':'Open in Yandex Music', 'Открыть исполнителя в Яндекс Музыке':'Open artist in Yandex Music', 'Открыть альбом в Яндекс Музыке':'Open album in Yandex Music',
   'Обнови код посредника в Cloudflare (worker.js)':'Update the proxy code in Cloudflare (worker.js)',
   '— скопируй значение до знака':'— copy the value up to the', 'Лайк поставлен':'Liked', 'Лайк убран':'Like removed', 'Отключено':'Disconnected', 'Токен недействителен — обнови его':'Token is invalid — renew it',
   'Порт открыт, но наушники не ответили. Отключись и подключись снова.':'Port is open but the headphones did not answer. Disconnect and connect again.',
@@ -764,7 +777,12 @@ setInterval(() => { if (writer && playing) askTrack(); }, 10000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) askTrackSoon(100); });
 function renderTrack(){
   $('trackTitle').textContent = meta[0] || '—';
-  $('trackSub').textContent = [meta[2], meta[1]].filter(Boolean).join(' · ');
+  const sub = $('trackSub'); sub.innerHTML = '';
+  [['art', meta[2]], ['alb', meta[1]]].filter(([, v]) => v).forEach(([cls, v], i) => {
+    if (i) sub.appendChild(document.createTextNode(' · '));
+    const sp = document.createElement('span'); sp.className = cls; sp.textContent = v; sub.appendChild(sp);
+  });
+  if (typeof ymLinks === 'function') ymLinks();
 }
 const fmt = sec => Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0');
 // trackDone: для текущего трека получен окончательный ответ (найден или точно нет); lookupBusy: поиск уже идёт
@@ -1048,6 +1066,7 @@ async function ymSearchRaw(artist, title){
   const a = norm(artist), t = norm(title);
   const all = (res.tracks?.results || []).map(x => ({
     id: String(x.id), albumId: x.albums?.[0]?.id, title: x.title, artist: (x.artists || []).map(z => z.name).join(', '),
+    artistId: x.artists?.[0]?.id, genre: x.albums?.[0]?.genre || '',
     dur: x.durationMs ? Math.round(x.durationMs / 1000) : 0,
     art: (x.coverUri || x.albums?.[0]?.coverUri) ? 'https://' + (x.coverUri || x.albums[0].coverUri).replace('%%', '400x400') : '' }));
   // все версии этого трека (разные альбомы/сборники) — лайк мог стоять на любой из них
@@ -1066,13 +1085,13 @@ async function ymCheck(){
   if (!ymReady() || !meta[0]) return;
   const key = [meta[2], meta[0]].join('|');
   if (key === ym.key) return;
-  ym.key = key; ym.cur = null; $('ymBtns').hidden = true; closePl();
+  ym.key = key; ym.cur = null; $('ymBtns').hidden = true; $('genreChip').hidden = true; closePl(); closeSim(); ymLinks();
   try {
     await ymLoadLikes(false);
     const found = await ymSearch(meta[2] || '', meta[0]);
     if (ym.key !== key) return;
     if (!found.length){ log('Яндекс Музыка: ' + L('Трек не найден в Яндекс Музыке')); return; }
-    ym.cur = found; $('ymBtns').hidden = false; ymRender();
+    ym.cur = found; $('ymBtns').hidden = false; ymRender(); ymLinks(); ymGenre(found[0].genre);
   } catch(e){ log('Яндекс Музыка: ' + e.message); if (e.auth) $('ymHint').textContent = e.message; ym.key = ''; }
 }
 $('btnLike').onclick = async () => {
@@ -1144,7 +1163,81 @@ async function ymAddToPlaylist(p){
     toast(L('Добавлено в «{0}»', p.title));
   } catch(e){ toast(L('Ошибка: {0}', e.message)); log('Яндекс Музыка: ' + e.message); }
 }
-document.addEventListener('click', e => { if (!$('plMenu').hidden && !e.target.closest('.plwrap')) closePl(); });
+document.addEventListener('click', e => { if (!e.target.closest('.plwrap')){ if (!$('plMenu').hidden) closePl(); if (!$('simMenu').hidden) closeSim(); } });
+// --- ссылки на трек, исполнителя и альбом в Яндекс Музыке ---
+const YM_WEB = 'https://music.yandex.ru';
+const openTab = u => window.open(u, '_blank', 'noopener');
+function ymLinks(){
+  const t = ym.cur && ym.cur[0];
+  const on = !!(t && t.albumId);
+  $('trackTitle').classList.toggle('linked', on);
+  document.querySelector('.cover').classList.toggle('linked', on);
+  $('trackTitle').title = on ? L('Открыть в Яндекс Музыке') : '';
+  document.querySelector('.cover').title = on ? L('Открыть в Яндекс Музыке') : '';
+  const art = $('trackSub').querySelector('.art'), alb = $('trackSub').querySelector('.alb');
+  if (art){ art.classList.toggle('lk', !!(t && t.artistId)); art.title = t && t.artistId ? L('Открыть исполнителя в Яндекс Музыке') : ''; }
+  if (alb){ alb.classList.toggle('lk', on); alb.title = on ? L('Открыть альбом в Яндекс Музыке') : ''; }
+}
+const openTrack = () => { const t = ym.cur && ym.cur[0]; if (t && t.albumId) openTab(YM_WEB + '/album/' + t.albumId + '/track/' + t.id); };
+$('trackTitle').addEventListener('click', openTrack);
+document.querySelector('.cover').addEventListener('click', openTrack);
+$('trackSub').addEventListener('click', e => {
+  const t = ym.cur && ym.cur[0]; if (!t) return;
+  if (e.target.closest('.art.lk') && t.artistId) openTab(YM_WEB + '/artist/' + t.artistId);
+  else if (e.target.closest('.alb.lk') && t.albumId) openTab(YM_WEB + '/album/' + t.albumId);
+});
+// --- жанр: код из каталога → человеческое название (справочник /genres, один раз) ---
+let genreNames = null;
+async function ymGenre(code){
+  if (!code){ $('genreChip').hidden = true; return; }
+  if (!genreNames){
+    genreNames = {};
+    try {
+      const walk = list => (list || []).forEach(g => {
+        const tt = g.titles || {};
+        genreNames[g.id] = (tt[LANG] || tt.ru || tt.en || {}).title || g.title || g.id;
+        walk(g.subGenres);
+      });
+      walk(await ymApi('/genres'));
+    } catch(e){ log('Яндекс Музыка: ' + e.message); genreNames = null; }
+  }
+  if (!ym.cur || ym.cur[0].genre !== code) return;
+  const name = (genreNames && genreNames[code]) || code;
+  $('tGenre').textContent = name.toUpperCase(); $('genreChip').hidden = false;
+}
+// --- похожие треки ---
+const simCache = new Map();
+function closeSim(){ $('simMenu').hidden = true; $('btnSim').setAttribute('aria-expanded', 'false'); }
+function simMsg(text){ const m = $('simMenu'); m.innerHTML = ''; const d = document.createElement('div'); d.className = 'empty'; d.textContent = text; m.appendChild(d); }
+$('btnSim').onclick = async e => {
+  e.stopPropagation(); closePl();
+  const m = $('simMenu');
+  if (!m.hidden){ closeSim(); return; }
+  if (!ym.cur) return;
+  const id = ym.cur[0].id;
+  simMsg(L('Загружаю…')); m.hidden = false; $('btnSim').setAttribute('aria-expanded', 'true');
+  try {
+    if (!simCache.has(id)){
+      const r = await ymApi('/tracks/' + id + '/similar');
+      simCache.set(id, (r.similarTracks || []).slice(0, 10));
+    }
+    const list = simCache.get(id);
+    if (!ym.cur || ym.cur[0].id !== id) return;
+    if (!list.length){ simMsg(L('Похожих треков нет')); return; }
+    m.innerHTML = '';
+    list.forEach(x => {
+      const it = document.createElement('button');
+      it.innerHTML = '<span><i></i></span><small></small>';
+      const artist = (x.artists || []).map(z => z.name).join(', ');
+      it.firstChild.firstChild.textContent = artist ? artist + ' — ' : '';
+      it.firstChild.appendChild(document.createTextNode(x.title));
+      it.lastChild.textContent = x.durationMs ? fmt(Math.round(x.durationMs / 1000)) : '';
+      const albumId = x.albums?.[0]?.id;
+      it.onclick = ev => { ev.stopPropagation(); closeSim(); openTab(albumId ? YM_WEB + '/album/' + albumId + '/track/' + x.id : YM_WEB + '/track/' + x.id); };
+      m.appendChild(it);
+    });
+  } catch(err){ simMsg(L('Ошибка: {0}', err.message)); }
+};
 // лайк, поставленный в самом приложении Яндекса, подтянется при возврате на вкладку
 document.addEventListener('visibilitychange', async () => {
   if (document.hidden || !ymReady() || !ym.cur) return;
@@ -1166,7 +1259,7 @@ $('ymSave').onclick = async () => {
 };
 $('ymLogout').onclick = () => {
   ym.token = ''; ym.uid = null; store.set('ym-token', ''); $('ymToken').value = '';
-  $('ymBtns').hidden = true; closePl(); $('ymHint').textContent = L('Не настроено'); ymStatus(L('Отключено'));
+  ym.cur = null; $('ymBtns').hidden = true; $('genreChip').hidden = true; closePl(); closeSim(); ymLinks(); $('ymHint').textContent = L('Не настроено'); ymStatus(L('Отключено'));
 };
 ymInit().catch(() => {});
 
@@ -1344,7 +1437,7 @@ document.addEventListener('keydown', e => {
   if (k === 'l' || k === 'L' || k === 'д' || k === 'Д'){ e.preventDefault(); toggleLog(); return; }
   if ((k === 'h' || k === 'H' || k === 'р' || k === 'Р') && !$('ymBtns').hidden){ e.preventDefault(); $('btnLike').click(); return; }
   if ((k === 'j' || k === 'J' || k === 'о' || k === 'О') && !$('ymBtns').hidden){ e.preventDefault(); $('btnDislike').click(); return; }
-  if (k === 'Escape' && !$('plMenu').hidden){ closePl(); return; }
+  if (k === 'Escape' && (!$('plMenu').hidden || !$('simMenu').hidden)){ closePl(); closeSim(); return; }
   if (k === 'Escape' && $('logPanel').classList.contains('open')){ $('logPanel').classList.remove('open'); return; }
   if (!live) return;
   if (k === ' ' && t.tagName !== 'BUTTON'){ e.preventDefault(); $('btnPlay').click(); }
