@@ -175,6 +175,25 @@ details summary{cursor:pointer;color:var(--muted);font:600 11px var(--mono);lett
 input[type=text]{font:12px var(--mono);padding:7px 10px;border-radius:4px;border:1px solid var(--line2);background:var(--bg);color:var(--text);flex:1;min-width:140px}
 .ghost{background:transparent;border-color:transparent;color:var(--muted);font:600 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:5px 8px}
 .ghost:hover{color:var(--acc);border-color:transparent}
+.like{width:28px;height:24px;padding:0;display:inline-grid;place-items:center;background:var(--bg);border-color:var(--line2)}
+.like[hidden]{display:none}
+.like svg{width:14px;height:14px;fill:none;stroke:var(--muted);stroke-width:2}
+.like.on{border-color:var(--bad);box-shadow:0 0 10px rgba(255,77,94,.35) inset}
+.like.on svg{fill:var(--bad);stroke:var(--bad)}
+.like.busy{opacity:.5}
+.modal{position:fixed;inset:0;z-index:40;background:rgba(3,4,6,.72);display:grid;place-items:center;padding:16px}
+.modal[hidden]{display:none}
+.modal-box{width:min(560px,100%)}
+.steps{margin:0 0 14px;padding-left:18px;color:var(--muted);font-size:13px}
+.steps li{margin-bottom:6px}
+.steps a{color:var(--cy)}
+.steps code,.note code{font:12px var(--mono);color:var(--text)}
+.fld{display:block;margin-bottom:10px}
+.fld span{display:block;font:600 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.fld input{width:100%;font:12px var(--mono);padding:8px 10px;border-radius:4px;border:1px solid var(--line2);background:var(--bg);color:var(--text)}
+.ymstat{font:12px var(--mono);margin-top:10px;min-height:18px}
+.ymstat.ok{color:var(--ok)} .ymstat.bad{color:var(--bad)}
+.note{display:block;color:var(--muted);font-size:12px;margin-top:8px}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;font:600 12px var(--mono);
   background:var(--panel2);border:1px solid var(--acc);color:var(--text);padding:8px 14px;border-radius:4px;transition:.2s;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%)}
@@ -263,6 +282,7 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
           <div class="chips">
             <span class="chip play">STATE <b id="playTxt">PAUSE</b></span>
             <span class="chip">DUR <b id="tDur">--:--</b></span>
+            <button class="like" id="btnLike" hidden title="Лайк в Яндекс Музыке (H)" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.6 3.4 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg></button>
           </div>
         </div>
       </div>
@@ -330,6 +350,10 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
         <div class="t"><div>Автоотключение</div><small>Питание при бездействии</small></div>
         <select id="apo"><option value="17,0">Не отключать</option><option value="16,0">Когда сняты</option></select>
       </div>
+      <div class="trow">
+        <div class="t"><div>Яндекс Музыка</div><small id="ymHint">Лайки текущего трека</small></div>
+        <button id="ymOpen">Настроить</button>
+      </div>
     </section>
 
     <!-- ===== Эквалайзер ===== -->
@@ -344,7 +368,7 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
   <footer class="foot">
     <div class="keys">
       <span><kbd>Space</kbd>плей/пауза</span><span><kbd>←</kbd><kbd>→</kbd>трек</span><span><kbd>↑</kbd><kbd>↓</kbd>громкость</span>
-      <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>NC / Ambient / Off</span><span class="kbtn" id="kFull"><kbd>F</kbd>весь экран</span><span class="kbtn" id="kLog"><kbd>L</kbd>журнал</span>
+      <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>NC / Ambient / Off</span><span class="kbtn" id="kFull"><kbd>F</kbd>весь экран</span><span class="kbtn" id="kLog"><kbd>L</kbd>журнал</span><span><kbd>H</kbd>лайк</span>
     </div>
   </footer>
   <section class="panel span2 logpanel" id="logPanel">
@@ -362,6 +386,20 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
     </details>
   </section>
 </main>
+<div class="modal" id="ymModal" hidden>
+  <div class="panel modal-box">
+    <div class="ph"><b>YM</b>Яндекс Музыка<span class="grow"></span><button class="ghost" id="ymClose">Закрыть</button></div>
+    <ol class="steps">
+      <li>Создай посредник на Cloudflare Workers по инструкции в README и вставь его адрес.</li>
+      <li>Получи токен по ссылке <a id="ymTokenLink" target="_blank" rel="noopener">oauth.yandex.ru</a>: войди в аккаунт, и в адресной строке появится <code>access_token=…</code> — скопируй значение до знака <code>&amp;</code>.</li>
+    </ol>
+    <label class="fld"><span>Адрес посредника</span><input type="text" id="ymWorker" placeholder="https://xm4-ym.имя.workers.dev" autocomplete="off" spellcheck="false"></label>
+    <label class="fld"><span>Токен</span><input type="password" id="ymToken" placeholder="y0_…" autocomplete="off" spellcheck="false"></label>
+    <div class="row"><button class="btn-acc" id="ymSave">Сохранить и проверить</button><button id="ymLogout">Отключить</button></div>
+    <div class="ymstat" id="ymStat"></div>
+    <small class="note">Токен хранится только в этом браузере и уходит лишь в твой посредник и Яндекс. Аудио не используется: только поиск трека и лайки.</small>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -394,6 +432,14 @@ const EN = {
   'Уведомления включены':'Notifications on', '⚠ Низкий заряд!':'⚠ Low battery!',
   'WH-1000XM4: осталось {0}%. Пора на зарядку.':'WH-1000XM4: {0}% left. Time to charge.', 'Наушники садятся':'Headphones running low',
   'Полосы сброшены':'Bands reset', 'Обновляю':'Refreshing', 'Полный экран недоступен':'Full screen unavailable',
+  'Яндекс Музыка':'Yandex Music', 'Лайки текущего трека':'Likes for the current track', 'Настроить':'Set up', 'лайк':'like',
+  'Лайк в Яндекс Музыке (H)':'Like on Yandex Music (H)', 'Адрес посредника':'Proxy URL', 'Токен':'Token',
+  'Сохранить и проверить':'Save and test', 'Создай посредник на Cloudflare Workers по инструкции в README и вставь его адрес.':'Create a Cloudflare Workers proxy as described in the README and paste its URL.',
+  'Токен хранится только в этом браузере и уходит лишь в твой посредник и Яндекс. Аудио не используется: только поиск трека и лайки.':'The token is stored only in this browser and is sent only to your proxy and Yandex. No audio is accessed: only track search and likes.',
+  'Подключено к аккаунту {0}':'Connected to account {0}', 'Подключено: {0}':'Connected: {0}', 'Не настроено':'Not set up', 'Проверяю…':'Checking…',
+  'Ошибка: {0}':'Error: {0}', 'Заполни оба поля':'Fill in both fields', 'Трек не найден в Яндекс Музыке':'Track not found on Yandex Music',
+  'Получи токен по ссылке':'Get a token at', ': войди в аккаунт, и в адресной строке появится':': sign in, and the address bar will show',
+  '— скопируй значение до знака':'— copy the value up to the', 'Лайк поставлен':'Liked', 'Лайк убран':'Like removed', 'Отключено':'Disconnected', 'Токен недействителен — обнови его':'Token is invalid — renew it',
   'Порт открыт, но наушники не ответили. Отключись и подключись снова.':'Port is open but the headphones did not answer. Disconnect and connect again.',
   'Не удалось подключиться: ':'Could not connect: ',
   'Этот браузер не поддерживает Web Serial. Нужен Chrome или Edge 117+ на компьютере либо Chrome 137+ на Android.':
@@ -583,7 +629,7 @@ function handlePayload(p){
   if ((c === 0xa7 || c === 0xa9) && p[1] === 0x01 && p[2] <= 0x03 && p.length >= 5 && p.length >= 5 + p[4]){
     meta[p[2]] = new TextDecoder().decode(new Uint8Array(p.slice(5, 5 + p[4]))).trim();
     renderTrack();
-    if (p[2] === 0x01 && c === 0xa7) onTrackInfo();
+    if (p[2] === 0x01 && c === 0xa7){ onTrackInfo(); ymCheck(); }
   }
   if (c === 0xa1) askTrackSoon();
   // воспроизведение: a3/a5 01 00 состояние (01 играет, 02 пауза)
@@ -915,6 +961,122 @@ function checkBattery(level, charging){
   }
 }
 
+// ================= Яндекс Музыка: лайк текущего трека =================
+// Только метаданные: поиск трека по названию/исполнителю и лайки. Запросы идут через свой посредник на Cloudflare Workers.
+const YM_CLIENT = '23cabbbdc6cd418abb4b39c32c41195d';
+$('ymTokenLink').href = 'https://oauth.yandex.ru/authorize?response_type=token&client_id=' + YM_CLIENT;
+const ym = { worker: (store.get('ym-worker') || '').replace(/\/+$/,''), token: store.get('ym-token') || '',
+             uid: null, login: '', liked: new Set(), likesAt: 0, cache: new Map(), cur: null, key: '' };
+async function ymApi(path, opts = {}){
+  const r = await fetch(ym.worker + path, {
+    method: opts.method || 'GET',
+    headers: Object.assign({ 'Authorization': 'OAuth ' + ym.token },
+      opts.form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+    body: opts.form ? new URLSearchParams(opts.form).toString() : undefined
+  });
+  if (r.status === 401 || r.status === 403){ const e = new Error(L('Токен недействителен — обнови его')); e.auth = true; throw e; }
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  if (j.error) throw new Error(j.error.name || JSON.stringify(j.error));
+  return j.result;
+}
+function ymStatus(text, kind){ $('ymStat').textContent = text; $('ymStat').className = 'ymstat' + (kind ? ' ' + kind : ''); }
+function ymReady(){ return !!(ym.worker && ym.token && ym.uid); }
+async function ymInit(){
+  ym.uid = null; $('btnLike').hidden = true;
+  if (!ym.worker || !ym.token){ $('ymHint').textContent = L('Не настроено'); return false; }
+  try {
+    const st = await ymApi('/account/status');
+    ym.uid = st.account.uid; ym.login = st.account.login || st.account.displayName || String(ym.uid);
+    $('ymHint').textContent = L('Подключено: {0}', ym.login);
+    await ymLoadLikes(true);
+    ym.key = ''; ymCheck();
+    return true;
+  } catch(e){
+    log('Яндекс Музыка: ' + e.message);
+    $('ymHint').textContent = L('Ошибка: {0}', e.message);
+    throw e;
+  }
+}
+async function ymLoadLikes(force){
+  if (!force && Date.now() - ym.likesAt < 60000) return;
+  const res = await ymApi('/users/' + ym.uid + '/likes/tracks');
+  ym.liked = new Set((res.library?.tracks || []).map(t => String(t.id)));
+  ym.likesAt = Date.now();
+}
+async function ymSearch(artist, title){
+  const key = artist + '|' + title;
+  if (ym.cache.has(key)) return ym.cache.get(key);
+  const res = await ymApi('/search?type=track&page=0&text=' + encodeURIComponent(norm(artist) + ' ' + norm(title)));
+  const a = norm(artist), t = norm(title);
+  const all = (res.tracks?.results || []).map(x => ({
+    id: String(x.id), albumId: x.albums?.[0]?.id, title: x.title, artist: (x.artists || []).map(z => z.name).join(', ') }));
+  // все версии этого трека (разные альбомы/сборники) — лайк мог стоять на любой из них
+  const same = all.filter(x => norm(x.title) === t && (!a || norm(x.artist).includes(a) || a.includes(norm(x.artist))));
+  const out = same.length ? same : all.filter(x => norm(x.title).startsWith(t) && (!a || norm(x.artist).includes(a))).slice(0, 1);
+  ym.cache.set(key, out);
+  return out;
+}
+function ymRender(){
+  const b = $('btnLike');
+  const on = !!ym.cur && ym.cur.some(x => ym.liked.has(x.id));
+  b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
+}
+async function ymCheck(){
+  if (!ymReady() || !meta[0]) return;
+  const key = [meta[2], meta[0]].join('|');
+  if (key === ym.key) return;
+  ym.key = key; ym.cur = null; $('btnLike').hidden = true;
+  try {
+    await ymLoadLikes(false);
+    const found = await ymSearch(meta[2] || '', meta[0]);
+    if (ym.key !== key) return;
+    if (!found.length){ log('Яндекс Музыка: ' + L('Трек не найден в Яндекс Музыке')); return; }
+    ym.cur = found; $('btnLike').hidden = false; ymRender();
+  } catch(e){ log('Яндекс Музыка: ' + e.message); if (e.auth) $('ymHint').textContent = e.message; ym.key = ''; }
+}
+$('btnLike').onclick = async () => {
+  if (!ym.cur || $('btnLike').classList.contains('busy')) return;
+  const b = $('btnLike'); b.classList.add('busy');
+  const likedIds = ym.cur.filter(x => ym.liked.has(x.id)).map(x => x.id);
+  try {
+    if (likedIds.length){
+      await ymApi('/users/' + ym.uid + '/likes/tracks/remove', { method:'POST', form:{ 'track-ids': likedIds.join(',') } });
+      likedIds.forEach(id => ym.liked.delete(id)); toast(L('Лайк убран'));
+    } else {
+      const t = ym.cur[0];
+      await ymApi('/users/' + ym.uid + '/likes/tracks/add-multiple', { method:'POST', form:{ 'track-ids': t.id + (t.albumId ? ':' + t.albumId : '') } });
+      ym.liked.add(t.id); toast(L('Лайк поставлен'));
+    }
+    ym.likesAt = Date.now(); ymRender();
+  } catch(e){ toast(L('Ошибка: {0}', e.message)); log('Яндекс Музыка: ' + e.message); }
+  b.classList.remove('busy');
+};
+// лайк, поставленный в самом приложении Яндекса, подтянется при возврате на вкладку
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden || !ymReady() || !ym.cur) return;
+  try { await ymLoadLikes(false); ymRender(); } catch {}
+});
+// --- диалог ---
+$('ymOpen').onclick = () => { $('ymWorker').value = ym.worker; $('ymToken').value = ym.token; ymStatus(''); $('ymModal').hidden = false; };
+$('ymClose').onclick = () => $('ymModal').hidden = true;
+$('ymModal').onclick = e => { if (e.target === $('ymModal')) $('ymModal').hidden = true; };
+$('ymSave').onclick = async () => {
+  let w = $('ymWorker').value.trim().replace(/\/+$/,''), t = $('ymToken').value.trim();
+  const m = t.match(/access_token=([^&]+)/); if (m) t = m[1];           // если вставили весь адрес
+  if (w && !/^https?:\/\//.test(w)) w = 'https://' + w;
+  if (!w || !t){ ymStatus(L('Заполни оба поля'), 'bad'); return; }
+  ym.worker = w; ym.token = t; store.set('ym-worker', w); store.set('ym-token', t);
+  ymStatus(L('Проверяю…'));
+  try { await ymInit(); ymStatus(L('Подключено к аккаунту {0}', ym.login), 'ok'); }
+  catch(e){ ymStatus(L('Ошибка: {0}', e.message), 'bad'); }
+};
+$('ymLogout').onclick = () => {
+  ym.token = ''; ym.uid = null; store.set('ym-token', ''); $('ymToken').value = '';
+  $('btnLike').hidden = true; $('ymHint').textContent = L('Не настроено'); ymStatus(L('Отключено'));
+};
+ymInit().catch(() => {});
+
 // ================= Эквалайзер =================
 const PRESETS = [[0x00,'OFF'],[0x10,'Bright'],[0x11,'Excited'],[0x12,'Mellow'],[0x13,'Relaxed'],[0x14,'Vocal'],
   [0x15,'Treble+'],[0x16,'Bass+'],[0x17,'Speech'],[0xa0,'Manual'],[0xa1,'Custom 1'],[0xa2,'Custom 2']];
@@ -1087,6 +1249,7 @@ document.addEventListener('keydown', e => {
   const k = e.key;
   if (k === 'f' || k === 'F' || k === 'а' || k === 'А'){ e.preventDefault(); toggleFull(); return; }
   if (k === 'l' || k === 'L' || k === 'д' || k === 'Д'){ e.preventDefault(); toggleLog(); return; }
+  if ((k === 'h' || k === 'H' || k === 'р' || k === 'Р') && !$('btnLike').hidden){ e.preventDefault(); $('btnLike').click(); return; }
   if (k === 'Escape' && $('logPanel').classList.contains('open')){ $('logPanel').classList.remove('open'); return; }
   if (!live) return;
   if (k === ' ' && t.tagName !== 'BUTTON'){ e.preventDefault(); $('btnPlay').click(); }
