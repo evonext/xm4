@@ -102,12 +102,22 @@ button:disabled{opacity:.35;cursor:not-allowed}
 .chip{font:600 10.5px/1 var(--mono);letter-spacing:.1em;padding:5px 8px;border-radius:3px;background:var(--bg);border:1px solid var(--line2);color:var(--muted)}
 .chip b{color:var(--cy);font-weight:600}
 .chip.play b{color:var(--ok)}
-.viz-wrap{position:relative;margin-top:14px;border:1px solid var(--line);border-radius:4px;background:
+.viz-wrap{position:relative;overflow:hidden;margin-top:14px;border:1px solid var(--line);border-radius:4px;background:
   linear-gradient(180deg,rgba(255,255,255,.015),transparent),var(--bg)}
-#viz{display:block;width:100%;height:110px}
+#viz{display:block;width:100%;height:110px;position:relative;z-index:1}
+.a-play{isolation:isolate}
+.artcut{position:absolute;top:0;bottom:0;right:0;width:min(560px,55%);z-index:-1;pointer-events:none;opacity:0;transition:opacity .6s;overflow:hidden;border-radius:6px}
+.artcut.show{opacity:.55}
+@media (max-width:780px){ .artcut{width:70%} .artcut.show{opacity:.35} }
+.a-play.has-art .viz-wrap{background:linear-gradient(180deg,rgba(255,255,255,.015),transparent),rgba(6,8,11,.55)}
+.artcut[hidden]{display:none}
+.artcut img{position:absolute;right:0;bottom:0;height:100%;max-width:100%;object-fit:contain;object-position:right bottom;filter:url(#duo) contrast(1.08);
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 35%),linear-gradient(0deg,transparent 0,#000 25%);-webkit-mask-composite:source-in;
+  mask-image:linear-gradient(90deg,transparent 0,#000 35%),linear-gradient(0deg,transparent 0,#000 25%);mask-composite:intersect}
+.artcut::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(6,8,11,.35) 0 1px,transparent 1px 3px)}
 .viz-wrap.fill #viz{position:absolute;inset:0;height:100%}
 .viz-wrap .tag[hidden]{display:none}
-.viz-wrap .tag{position:absolute;top:8px;right:8px;background:rgba(6,8,11,.7)}
+.viz-wrap .tag{position:absolute;top:8px;right:8px;z-index:2;background:rgba(6,8,11,.7)}
 .ctrl{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;margin-top:14px}
 .transport{display:flex;gap:6px;align-items:center}
 .transport button{width:40px;height:40px;padding:0;display:grid;place-items:center}
@@ -294,6 +304,7 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
 
     <!-- ===== Воспроизведение ===== -->
     <section class="panel span2 a-play">
+      <div class="artcut" id="artCut" hidden><img id="artCutImg" alt="" referrerpolicy="no-referrer"></div>
       <div class="ph"><b>01</b>Воспроизведение<span class="grow"></span></div>
       <div class="np">
         <div class="cover"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></svg><img id="coverImg" alt="" hidden></div>
@@ -429,6 +440,16 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
     <small class="note">Токен хранится только в этом браузере и уходит лишь в твой посредник и Яндекс. Аудио не используется: только поиск трека и лайки.</small>
   </div>
 </div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="duo" color-interpolation-filters="sRGB">
+    <feColorMatrix type="matrix" values=".33 .33 .33 0 0  .33 .33 .33 0 0  .33 .33 .33 0 0  0 0 0 1 0"/>
+    <feComponentTransfer>
+      <feFuncR type="table" tableValues="0.02 0.55 1 1"/>
+      <feFuncG type="table" tableValues="0.03 0.18 0.42 0.82"/>
+      <feFuncB type="table" tableValues="0.04 0.05 0.10 0.60"/>
+    </feComponentTransfer>
+  </filter>
+</svg>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1085,13 +1106,13 @@ async function ymCheck(){
   if (!ymReady() || !meta[0]) return;
   const key = [meta[2], meta[0]].join('|');
   if (key === ym.key) return;
-  ym.key = key; ym.cur = null; $('ymBtns').hidden = true; $('genreChip').hidden = true; closePl(); closeSim(); ymLinks();
+  ym.key = key; ym.cur = null; $('ymBtns').hidden = true; $('genreChip').hidden = true; closePl(); closeSim(); ymLinks(); artCut(null);
   try {
     await ymLoadLikes(false);
     const found = await ymSearch(meta[2] || '', meta[0]);
     if (ym.key !== key) return;
     if (!found.length){ log('Яндекс Музыка: ' + L('Трек не найден в Яндекс Музыке')); return; }
-    ym.cur = found; $('ymBtns').hidden = false; ymRender(); ymLinks(); ymGenre(found[0].genre);
+    ym.cur = found; $('ymBtns').hidden = false; ymRender(); ymLinks(); ymGenre(found[0].genre); ymArtCut(found[0].artistId);
   } catch(e){ log('Яндекс Музыка: ' + e.message); if (e.auth) $('ymHint').textContent = e.message; ym.key = ''; }
 }
 $('btnLike').onclick = async () => {
@@ -1238,6 +1259,50 @@ $('btnSim').onclick = async e => {
     });
   } catch(err){ simMsg(L('Ошибка: {0}', err.message)); }
 };
+// --- «вырезка» исполнителя (прозрачный PNG из «Моей волны»), перекрашенная под интерфейс ---
+// Поле в ответе API заранее неизвестно: ищем картинку по ключам со словами vibe/transparent/cutout,
+// а все найденные ссылки на изображения пишем в журнал, чтобы поле можно было уточнить.
+const artCache = new Map();
+function artCut(url){
+  const box = $('artCut'), img = $('artCutImg');
+  const panel = document.querySelector('.a-play');
+  box.classList.remove('show');
+  if (!url){ box.hidden = true; panel.classList.remove('has-art'); img.removeAttribute('src'); return; }
+  img.onload = () => { box.hidden = false; panel.classList.add('has-art'); requestAnimationFrame(() => box.classList.add('show')); };
+  img.onerror = () => { box.hidden = true; panel.classList.remove('has-art'); };
+  img.src = url;
+}
+function ymImageUrl(u){
+  if (typeof u !== 'string' || !/avatars\.yandex\.net|get-music|%%/.test(u)) return null;
+  u = u.replace('%%', 'orig');
+  return /^https?:/.test(u) ? u : 'https://' + u.replace(/^\/+/, '');
+}
+function findImages(obj, path = '', out = [], depth = 0){
+  if (!obj || depth > 6) return out;
+  if (Array.isArray(obj)){ obj.slice(0, 5).forEach((v, i) => findImages(v, path + '[' + i + ']', out, depth + 1)); return out; }
+  if (typeof obj === 'object'){
+    for (const [k, v] of Object.entries(obj)){
+      if (/^(albums|tracks|popularTracks|similarArtists|alsoAlbums|playlists|concerts|videos|lastReleases|allCovers)$/.test(k)) continue;
+      const p = path ? path + '.' + k : k;
+      const u = ymImageUrl(v);
+      if (u) out.push({ path: p, url: u }); else findImages(v, p, out, depth + 1);
+    }
+  }
+  return out;
+}
+async function ymArtCut(artistId){
+  if (!artistId){ artCut(null); return; }
+  try {
+    if (!artCache.has(artistId)){
+      const info = await ymApi('/artists/' + artistId + '/brief-info');
+      const imgs = findImages(info);
+      log('исполнитель ' + artistId + ': картинки — ' + (imgs.length ? imgs.map(x => x.path + ' = ' + x.url).join(' | ') : 'нет'));
+      const pick = imgs.find(x => /vibe|transparent|cutout|cut[A-Z_]|png/i.test(x.path));
+      artCache.set(artistId, pick ? pick.url : null);
+    }
+    if (ym.cur && String(ym.cur[0].artistId) === String(artistId)) artCut(artCache.get(artistId));
+  } catch(e){ log('Яндекс Музыка: ' + e.message); }
+}
 // лайк, поставленный в самом приложении Яндекса, подтянется при возврате на вкладку
 document.addEventListener('visibilitychange', async () => {
   if (document.hidden || !ymReady() || !ym.cur) return;
@@ -1259,7 +1324,7 @@ $('ymSave').onclick = async () => {
 };
 $('ymLogout').onclick = () => {
   ym.token = ''; ym.uid = null; store.set('ym-token', ''); $('ymToken').value = '';
-  ym.cur = null; $('ymBtns').hidden = true; $('genreChip').hidden = true; closePl(); closeSim(); ymLinks(); $('ymHint').textContent = L('Не настроено'); ymStatus(L('Отключено'));
+  ym.cur = null; $('ymBtns').hidden = true; $('genreChip').hidden = true; closePl(); closeSim(); ymLinks(); artCut(null); $('ymHint').textContent = L('Не настроено'); ymStatus(L('Отключено'));
 };
 ymInit().catch(() => {});
 
