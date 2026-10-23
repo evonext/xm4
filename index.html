@@ -1303,6 +1303,13 @@ async function ymArtCut(artistId){
         pick = imgs.find(isCut);
         if (pick) break;
       }
+      if (!pick){
+        try {
+          const r = await ymApi('/xm4/artist-cut/' + artistId);
+          log('исполнитель ' + artistId + ' [страница]: HTTP ' + r.status + ', ' + r.size + ' байт' + (r.captcha ? ', капча' : '') + ', вырезка: ' + (r.url || 'нет'));
+          if (r.url) pick = { url: r.url };
+        } catch(e){ log('исполнитель ' + artistId + ' [страница]: ' + e.message); }
+      }
       artCache.set(artistId, pick ? pick.url : null);
     }
     if (ym.cur && String(ym.cur[0].artistId) === String(artistId)) artCut(artCache.get(artistId));
