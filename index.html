@@ -240,7 +240,6 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
       </div>
       <div class="actions">
         <button class="btn-acc" id="btnConnect">Подключить</button>
-        <button id="btnAll" title="Показать все порты без фильтра">Все порты</button>
         <button id="btnRefresh" disabled>Обновить</button>
         <button id="btnDisconnect" disabled>Отключить</button>
         <button id="btnFull" title="Во весь экран (F)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
@@ -369,7 +368,7 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
 // ================= Язык: автоматически по языку браузера =================
 const LANG = /^(ru|uk|be|kk)\b/i.test(navigator.language || '') ? 'ru' : 'en';
 const EN = {
-  'Подключить':'Connect', 'Все порты':'All ports', 'Показать все порты без фильтра':'Show all ports without filter',
+  'Подключить':'Connect',
   'Обновить':'Refresh', 'Отключить':'Disconnect', 'Во весь экран (F)':'Full screen (F)',
   'Не подключено':'Not connected', 'Подключено':'Connected', 'Открываю канал…':'Opening channel…', 'Жду ответа…':'Waiting for reply…',
   'Соединение потеряно':'Connection lost', 'Закрыть':'Close',
@@ -395,7 +394,7 @@ const EN = {
   'Уведомления включены':'Notifications on', '⚠ Низкий заряд!':'⚠ Low battery!',
   'WH-1000XM4: осталось {0}%. Пора на зарядку.':'WH-1000XM4: {0}% left. Time to charge.', 'Наушники садятся':'Headphones running low',
   'Полосы сброшены':'Bands reset', 'Обновляю':'Refreshing', 'Полный экран недоступен':'Full screen unavailable',
-  'Порт открыт, но наушники не ответили. Отключись и выбери другую службу.':'Port is open but the headphones did not answer. Disconnect and pick the other service.',
+  'Порт открыт, но наушники не ответили. Отключись и подключись снова.':'Port is open but the headphones did not answer. Disconnect and connect again.',
   'Не удалось подключиться: ':'Could not connect: ',
   'Этот браузер не поддерживает Web Serial. Нужен Chrome или Edge 117+ на компьютере либо Chrome 137+ на Android.':
     'This browser does not support Web Serial. Use Chrome or Edge 117+ on desktop, or Chrome 137+ on Android.',
@@ -423,12 +422,8 @@ function translatePage(){
 translatePage();
 
 // ================= Протокол Sony MDR v1 =================
-const UUID_HPC = '96cc203e-5068-46ad-b32d-e316f5e069ba'; // Serial HPC (твои XM4)
-const UUID_MC  = 'b9b213ce-eeab-49e4-8fd9-aa478ed1b26b'; // Serial MC
-const UUID_V1  = '96cc203e-5068-46ad-9b05-6f3e5f7e3d84';
-const UUID_V2  = '956c7b26-d49a-4ba8-b03f-b17d393cb6e2';
-const UUIDS = [UUID_HPC, UUID_MC, UUID_V1, UUID_V2];
-const UUID_NAMES = { [UUID_HPC]:'HPC', [UUID_MC]:'MC', [UUID_V1]:'V1', [UUID_V2]:'V2' };
+const UUID_HPC = '96cc203e-5068-46ad-b32d-e316f5e069ba'; // служба управления Serial HPC
+const isHpc = p => String(p.getInfo().bluetoothServiceClassId || '').toLowerCase() === UUID_HPC;
 const START = 0x3E, END = 0x3C, ESC = 0x3D;
 const T_ACK = 0x01, T_DATA = 0x0C, T_DATA2 = 0x0E;
 
@@ -977,16 +972,15 @@ $('scanTags').onclick = async () => {
 // ================= Подключение =================
 function setState(text, kind){ $('state').textContent = text; $('dot').className = 'dot' + (kind ? ' ' + kind : ''); }
 function setConnectedUI(on){
-  $('btnConnect').disabled = $('btnAll').disabled = on;
+  $('btnConnect').disabled = on;
   $('btnDisconnect').disabled = $('btnRefresh').disabled = $('rawSend').disabled = !on;
   $('controls').classList.toggle('disabled', !on);
 }
 async function openPort(p){
   port = p;
   const info = p.getInfo();
-  const sid = String(info.bluetoothServiceClassId || '').toLowerCase();
   log('порт: ' + JSON.stringify(info));
-  $('chan').textContent = UUID_NAMES[sid] || (info.bluetoothServiceClassId ? 'BT' : 'COM');
+  $('chan').textContent = 'HPC';
   setState(L('Открываю канал…'));
   await p.open({ baudRate: 9600 });
   reader = p.readable.getReader();
@@ -998,15 +992,16 @@ async function openPort(p){
   send([0x00, 0x00]);
   refresh();
   setTimeout(() => {
-    if (writer && !alive) $('warn').textContent = L('Порт открыт, но наушники не ответили. Отключись и выбери другую службу.');
+    if (writer && !alive) $('warn').textContent = L('Порт открыт, но наушники не ответили. Отключись и подключись снова.');
   }, 5000);
 }
-async function connect(showAll){
+async function connect(){
   $('warn').textContent = '';
   try {
-    const opts = { allowedBluetoothServiceClassIds: UUIDS };
-    if (!showAll) opts.filters = UUIDS.map(u => ({ bluetoothServiceClassId: u }));
-    await openPort(await navigator.serial.requestPort(opts));
+    await openPort(await navigator.serial.requestPort({
+      allowedBluetoothServiceClassIds: [UUID_HPC],
+      filters: [{ bluetoothServiceClassId: UUID_HPC }]
+    }));
   } catch(e){
     log('! ' + e.message);
     if (e.name !== 'NotFoundError') $('warn').textContent = L('Не удалось подключиться: ') + e.message;
@@ -1026,21 +1021,19 @@ async function disconnect(silent){
 async function autoConnect(){
   if (!('serial' in navigator)) return;
   const ports = await navigator.serial.getPorts();
-  const known = ports.find(p => String(p.getInfo().bluetoothServiceClassId || '').toLowerCase() === UUID_HPC)
-             || ports.find(p => UUIDS.includes(String(p.getInfo().bluetoothServiceClassId || '').toLowerCase()));
+  const known = ports.find(isHpc);
   if (!known) return;
   try { await openPort(known); }
   catch(e){ log('автоподключение не удалось: ' + e.message); port = null; setState(L('Не подключено')); setConnectedUI(false); }
 }
 
-$('btnConnect').onclick = () => connect(false);
-$('btnAll').onclick = () => connect(true);
+$('btnConnect').onclick = () => connect();
 $('btnDisconnect').onclick = () => disconnect(false);
 $('btnRefresh').onclick = () => { refresh(); toast(L('Обновляю')); };
 setInterval(() => { if (writer) send([0x10, 0x00]); }, 60000);
 
 if (!('serial' in navigator)){
-  $('btnConnect').disabled = $('btnAll').disabled = true;
+  $('btnConnect').disabled = true;
   $('warn').textContent = L('Этот браузер не поддерживает Web Serial. Нужен Chrome или Edge 117+ на компьютере либо Chrome 137+ на Android.');
 } else {
   navigator.serial.addEventListener('connect', () => { if (!port) autoConnect(); });

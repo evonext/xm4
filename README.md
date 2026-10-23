@@ -33,8 +33,7 @@
 ## Как пользоваться
 
 1. Открой https://evonext.github.io/xm4/
-2. Нажми **«Подключить»** и выбери WH-1000XM4. Если в списке их нет — **«Все порты»**.
-3. Если вариантов несколько, подходит служба **Serial HPC**. Если через 5 секунд страница пишет, что наушники не ответили, — «Отключить» и выбери другой вариант.
+2. Нажми **«Подключить»** и выбери WH-1000XM4. Страница подключается только к служебному каналу управления **Serial HPC**, поэтому в списке будут только сами наушники.
 
 Дальше браузер запомнит разрешение, и страница будет подключаться сама при открытии.
 
@@ -59,9 +58,9 @@
 
 | Симптом | Что сделать |
 |---|---|
-| «Совместимые устройства не найдены» (компьютер) | Наушники должны быть подключены в настройках Bluetooth. Попробуй «Все порты». Удали и заново спарь наушники при открытом браузере |
+| «Совместимые устройства не найдены» (компьютер) | Наушники должны быть подключены в настройках Bluetooth. Удали и заново спарь наушники при открытом браузере |
 | «Совместимые устройства не найдены» (Android) | Дай Chrome разрешение «Устройства поблизости», проверь версию Chrome (`chrome://version`, нужна 137+) |
-| Порт открыт, но наушники не отвечают | Выбран не тот канал — отключись и выбери другую службу |
+| Порт открыт, но наушники не отвечают | Закрой Sony Headphones Connect на телефоне, отключись и подключись снова |
 | Пуш о заряде «запрещён» | Открывай страницу по ссылке `https://…`, а не как локальный файл: для `file://` браузер не запоминает разрешения |
 | Нет обложки или длительности | Трека нет в каталогах Deezer / iTunes или сеть их блокирует. Подробности — в журнале (`L`), строки «поиск …» |
 
@@ -71,7 +70,7 @@
 
 ## Протокол (для разработчиков)
 
-Транспорт — Bluetooth RFCOMM, служба **Serial HPC** `96cc203e-5068-46ad-b32d-e316f5e069ba`. На XM4 есть и вторая служба, **Serial MC** `b9b213ce-eeab-49e4-8fd9-aa478ed1b26b`.
+Транспорт — Bluetooth RFCOMM, служба **Serial HPC** `96cc203e-5068-46ad-b32d-e316f5e069ba`. Страница подключается только к ней.
 
 **Кадр:** `3E | тип | seq | длина (4 байта, BE) | данные | контрольная сумма | 3C`
 - тип `0C` — данные, `01` — подтверждение (ACK, seq = 1 − seq полученного);
@@ -121,7 +120,7 @@ Browser-based control panel for **Sony WH-1000XM4**. No install needed: it talks
 
 **Requirements:** Chrome or Edge 117+ on desktop, or Chrome 137+ on Android (grant Chrome the *Nearby devices* permission). The headphones must be paired and connected in the system Bluetooth settings.
 
-**Usage:** open the page → **Connect** → pick WH-1000XM4 (use **All ports** if the list is empty). If several entries appear, the right one is the *Serial HPC* service. The browser remembers the permission and reconnects automatically next time.
+**Usage:** open the page → **Connect** → pick WH-1000XM4. The page only connects to the *Serial HPC* control service. The browser remembers the permission and reconnects automatically next time.
 
 **Privacy:** everything runs in your browser; the only outgoing requests are artist + title searches on Deezer and iTunes for cover art and duration.
 
