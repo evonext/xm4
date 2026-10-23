@@ -176,7 +176,19 @@ input[type=text]{font:12px var(--mono);padding:7px 10px;border-radius:4px;border
 .ghost{background:transparent;border-color:transparent;color:var(--muted);font:600 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:5px 8px}
 .ghost:hover{color:var(--acc);border-color:transparent}
 .like{width:28px;height:24px;padding:0;display:inline-grid;place-items:center;background:var(--bg);border-color:var(--line2)}
-.like[hidden]{display:none}
+.like[hidden],.ymbtns[hidden]{display:none}
+.ymbtns{display:inline-flex;gap:6px;align-items:center}
+.like.dis.on{border-color:var(--muted);box-shadow:0 0 10px rgba(107,122,137,.35) inset}
+.like.dis.on svg{fill:none;stroke:var(--text)}
+.like.pl svg{stroke-linecap:round}
+.plwrap{position:relative;display:inline-flex}
+.plmenu{position:absolute;top:calc(100% + 6px);left:0;z-index:30;min-width:220px;max-height:280px;overflow:auto;
+  background:var(--panel2);border:1px solid var(--line2);border-radius:4px;box-shadow:0 12px 32px rgba(0,0,0,.5);padding:4px}
+.plmenu[hidden]{display:none}
+.plmenu button{display:flex;justify-content:space-between;gap:12px;width:100%;text-align:left;border:0;background:transparent;padding:7px 10px;font-size:13px}
+.plmenu button:hover{background:var(--bg);color:var(--acc)}
+.plmenu button small{font:11px var(--mono);color:var(--muted)}
+.plmenu .empty{padding:8px 10px;color:var(--muted);font-size:12.5px}
 .like svg{width:14px;height:14px;fill:none;stroke:var(--muted);stroke-width:2}
 .like.on{border-color:var(--bad);box-shadow:0 0 10px rgba(255,77,94,.35) inset}
 .like.on svg{fill:var(--bad);stroke:var(--bad)}
@@ -282,7 +294,12 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
           <div class="chips">
             <span class="chip play">STATE <b id="playTxt">PAUSE</b></span>
             <span class="chip">DUR <b id="tDur">--:--</b></span>
-            <button class="like" id="btnLike" hidden title="Лайк в Яндекс Музыке (H)" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.6 3.4 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg></button>
+            <span class="ymbtns" id="ymBtns" hidden>
+              <button class="like" id="btnLike" title="Лайк в Яндекс Музыке (H)" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.6 3.4 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg></button>
+              <button class="like dis" id="btnDislike" title="Не рекомендовать (J)" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6 18L18 6"/></svg></button>
+              <span class="plwrap"><button class="like pl" id="btnPl" title="Добавить в плейлист" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 7h11M4 12h11M4 17h7M18 14v7M14.5 17.5h7"/></svg></button>
+                <div class="plmenu" id="plMenu" hidden></div></span>
+            </span>
           </div>
         </div>
       </div>
@@ -368,7 +385,7 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
   <footer class="foot">
     <div class="keys">
       <span><kbd>Space</kbd>плей/пауза</span><span><kbd>←</kbd><kbd>→</kbd>трек</span><span><kbd>↑</kbd><kbd>↓</kbd>громкость</span>
-      <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>NC / Ambient / Off</span><span class="kbtn" id="kFull"><kbd>F</kbd>весь экран</span><span class="kbtn" id="kLog"><kbd>L</kbd>журнал</span><span><kbd>H</kbd>лайк</span>
+      <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>NC / Ambient / Off</span><span class="kbtn" id="kFull"><kbd>F</kbd>весь экран</span><span class="kbtn" id="kLog"><kbd>L</kbd>журнал</span><span><kbd>H</kbd>лайк</span><span><kbd>J</kbd>не рекомендовать</span>
     </div>
   </footer>
   <section class="panel span2 logpanel" id="logPanel">
@@ -439,6 +456,10 @@ const EN = {
   'Подключено к аккаунту {0}':'Connected to account {0}', 'Подключено: {0}':'Connected: {0}', 'Не настроено':'Not set up', 'Проверяю…':'Checking…',
   'Ошибка: {0}':'Error: {0}', 'Заполни оба поля':'Fill in both fields', 'Трек не найден в Яндекс Музыке':'Track not found on Yandex Music',
   'Получи токен по ссылке':'Get a token at', ': войди в аккаунт, и в адресной строке появится':': sign in, and the address bar will show',
+  'Не рекомендовать (J)':"Don't recommend (J)", 'не рекомендовать':"don't recommend", 'Добавить в плейлист':'Add to playlist',
+  'Трек больше не будет рекомендоваться':'Track will no longer be recommended', 'Рекомендации трека возвращены':'Track recommendations restored',
+  'Добавлено в «{0}»':'Added to “{0}”', 'Плейлистов нет':'No playlists', 'Загружаю…':'Loading…',
+  'Обнови код посредника в Cloudflare (worker.js)':'Update the proxy code in Cloudflare (worker.js)',
   '— скопируй значение до знака':'— copy the value up to the', 'Лайк поставлен':'Liked', 'Лайк убран':'Like removed', 'Отключено':'Disconnected', 'Токен недействителен — обнови его':'Token is invalid — renew it',
   'Порт открыт, но наушники не ответили. Отключись и подключись снова.':'Port is open but the headphones did not answer. Disconnect and connect again.',
   'Не удалось подключиться: ':'Could not connect: ',
@@ -757,7 +778,12 @@ async function onTrackInfo(){
     $('coverImg').hidden = true; $('tDur').textContent = '--:--';
   }
   lookupBusy = true;
-  const { res, final } = await lookup(meta[2], meta[0], meta[1]);
+  let res = null, final = true;
+  if (ymReady()){                                   // сначала каталог Яндекса — он уже нужен для лайка
+    try { const f = await ymSearch(meta[2] || '', meta[0]); if (f.length && (f[0].dur || f[0].art)) res = f[0]; }
+    catch(e){ log('Яндекс Музыка: ' + e.message); }
+  }
+  if (!res) ({ res, final } = await lookup(meta[2], meta[0], meta[1]));
   lookupBusy = false;
   if (trackKey !== key) return;
   trackDone = final;
@@ -966,7 +992,7 @@ function checkBattery(level, charging){
 const YM_CLIENT = '23cabbbdc6cd418abb4b39c32c41195d';
 $('ymTokenLink').href = 'https://oauth.yandex.ru/authorize?response_type=token&client_id=' + YM_CLIENT;
 const ym = { worker: (store.get('ym-worker') || '').replace(/\/+$/,''), token: store.get('ym-token') || '',
-             uid: null, login: '', liked: new Set(), likesAt: 0, cache: new Map(), cur: null, key: '' };
+             uid: null, login: '', liked: new Set(), disliked: new Set(), likesAt: 0, cache: new Map(), cur: null, key: '', pls: null };
 async function ymApi(path, opts = {}){
   const r = await fetch(ym.worker + path, {
     method: opts.method || 'GET',
@@ -975,6 +1001,7 @@ async function ymApi(path, opts = {}){
     body: opts.form ? new URLSearchParams(opts.form).toString() : undefined
   });
   if (r.status === 401 || r.status === 403){ const e = new Error(L('Токен недействителен — обнови его')); e.auth = true; throw e; }
+  if (r.status === 404) throw new Error(L('Обнови код посредника в Cloudflare (worker.js)'));
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const j = await r.json();
   if (j.error) throw new Error(j.error.name || JSON.stringify(j.error));
@@ -983,7 +1010,7 @@ async function ymApi(path, opts = {}){
 function ymStatus(text, kind){ $('ymStat').textContent = text; $('ymStat').className = 'ymstat' + (kind ? ' ' + kind : ''); }
 function ymReady(){ return !!(ym.worker && ym.token && ym.uid); }
 async function ymInit(){
-  ym.uid = null; $('btnLike').hidden = true;
+  ym.uid = null; $('ymBtns').hidden = true;
   if (!ym.worker || !ym.token){ $('ymHint').textContent = L('Не настроено'); return false; }
   try {
     const st = await ymApi('/account/status');
@@ -1000,39 +1027,52 @@ async function ymInit(){
 }
 async function ymLoadLikes(force){
   if (!force && Date.now() - ym.likesAt < 60000) return;
-  const res = await ymApi('/users/' + ym.uid + '/likes/tracks');
-  ym.liked = new Set((res.library?.tracks || []).map(t => String(t.id)));
+  const [lk, dl] = await Promise.all([
+    ymApi('/users/' + ym.uid + '/likes/tracks'),
+    ymApi('/users/' + ym.uid + '/dislikes/tracks').catch(e => { log('Яндекс Музыка: ' + e.message); return null; })
+  ]);
+  ym.liked = new Set((lk.library?.tracks || []).map(t => String(t.id)));
+  if (dl) ym.disliked = new Set((dl.library?.tracks || []).map(t => String(t.id)));
   ym.likesAt = Date.now();
 }
 async function ymSearch(artist, title){
   const key = artist + '|' + title;
   if (ym.cache.has(key)) return ym.cache.get(key);
+  const pr = ymSearchRaw(artist, title);
+  ym.cache.set(key, pr);
+  pr.catch(() => ym.cache.delete(key));
+  return pr;
+}
+async function ymSearchRaw(artist, title){
   const res = await ymApi('/search?type=track&page=0&text=' + encodeURIComponent(norm(artist) + ' ' + norm(title)));
   const a = norm(artist), t = norm(title);
   const all = (res.tracks?.results || []).map(x => ({
-    id: String(x.id), albumId: x.albums?.[0]?.id, title: x.title, artist: (x.artists || []).map(z => z.name).join(', ') }));
+    id: String(x.id), albumId: x.albums?.[0]?.id, title: x.title, artist: (x.artists || []).map(z => z.name).join(', '),
+    dur: x.durationMs ? Math.round(x.durationMs / 1000) : 0,
+    art: (x.coverUri || x.albums?.[0]?.coverUri) ? 'https://' + (x.coverUri || x.albums[0].coverUri).replace('%%', '400x400') : '' }));
   // все версии этого трека (разные альбомы/сборники) — лайк мог стоять на любой из них
   const same = all.filter(x => norm(x.title) === t && (!a || norm(x.artist).includes(a) || a.includes(norm(x.artist))));
   const out = same.length ? same : all.filter(x => norm(x.title).startsWith(t) && (!a || norm(x.artist).includes(a))).slice(0, 1);
-  ym.cache.set(key, out);
   return out;
 }
 function ymRender(){
   const b = $('btnLike');
   const on = !!ym.cur && ym.cur.some(x => ym.liked.has(x.id));
   b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
+  const d = $('btnDislike'), off = !!ym.cur && ym.cur.some(x => ym.disliked.has(x.id));
+  d.classList.toggle('on', off); d.setAttribute('aria-pressed', off);
 }
 async function ymCheck(){
   if (!ymReady() || !meta[0]) return;
   const key = [meta[2], meta[0]].join('|');
   if (key === ym.key) return;
-  ym.key = key; ym.cur = null; $('btnLike').hidden = true;
+  ym.key = key; ym.cur = null; $('ymBtns').hidden = true; closePl();
   try {
     await ymLoadLikes(false);
     const found = await ymSearch(meta[2] || '', meta[0]);
     if (ym.key !== key) return;
     if (!found.length){ log('Яндекс Музыка: ' + L('Трек не найден в Яндекс Музыке')); return; }
-    ym.cur = found; $('btnLike').hidden = false; ymRender();
+    ym.cur = found; $('ymBtns').hidden = false; ymRender();
   } catch(e){ log('Яндекс Музыка: ' + e.message); if (e.auth) $('ymHint').textContent = e.message; ym.key = ''; }
 }
 $('btnLike').onclick = async () => {
@@ -1046,12 +1086,65 @@ $('btnLike').onclick = async () => {
     } else {
       const t = ym.cur[0];
       await ymApi('/users/' + ym.uid + '/likes/tracks/add-multiple', { method:'POST', form:{ 'track-ids': t.id + (t.albumId ? ':' + t.albumId : '') } });
-      ym.liked.add(t.id); toast(L('Лайк поставлен'));
+      ym.liked.add(t.id); ym.cur.forEach(x => ym.disliked.delete(x.id)); toast(L('Лайк поставлен'));
     }
     ym.likesAt = Date.now(); ymRender();
   } catch(e){ toast(L('Ошибка: {0}', e.message)); log('Яндекс Музыка: ' + e.message); }
   b.classList.remove('busy');
 };
+// --- дизлайк: «не рекомендовать» (снимает лайк) ---
+$('btnDislike').onclick = async () => {
+  const b = $('btnDislike');
+  if (!ym.cur || b.classList.contains('busy')) return;
+  b.classList.add('busy');
+  const dis = ym.cur.filter(x => ym.disliked.has(x.id)).map(x => x.id);
+  try {
+    if (dis.length){
+      await ymApi('/users/' + ym.uid + '/dislikes/tracks/remove', { method:'POST', form:{ 'track-ids': dis.join(',') } });
+      dis.forEach(id => ym.disliked.delete(id)); toast(L('Рекомендации трека возвращены'));
+    } else {
+      const t = ym.cur[0];
+      await ymApi('/users/' + ym.uid + '/dislikes/tracks/add-multiple', { method:'POST', form:{ 'track-ids': t.id + (t.albumId ? ':' + t.albumId : '') } });
+      ym.disliked.add(t.id); ym.cur.forEach(x => ym.liked.delete(x.id)); toast(L('Трек больше не будет рекомендоваться'));
+    }
+    ym.likesAt = Date.now(); ymRender();
+  } catch(e){ toast(L('Ошибка: {0}', e.message)); log('Яндекс Музыка: ' + e.message); }
+  b.classList.remove('busy');
+};
+// --- добавить в плейлист ---
+function closePl(){ $('plMenu').hidden = true; $('btnPl').setAttribute('aria-expanded', 'false'); }
+function plMsg(text){ const m = $('plMenu'); m.innerHTML = ''; const d = document.createElement('div'); d.className = 'empty'; d.textContent = text; m.appendChild(d); }
+$('btnPl').onclick = async e => {
+  e.stopPropagation();
+  const m = $('plMenu');
+  if (!m.hidden){ closePl(); return; }
+  plMsg(L('Загружаю…')); m.hidden = false; $('btnPl').setAttribute('aria-expanded', 'true');
+  try {
+    const list = await ymApi('/users/' + ym.uid + '/playlists/list');
+    ym.pls = list.filter(p => p.kind !== 3);         // 3 — «Мне нравится», туда добавляет лайк
+    if (!ym.pls.length){ plMsg(L('Плейлистов нет')); return; }
+    m.innerHTML = '';
+    ym.pls.forEach(p => {
+      const it = document.createElement('button');
+      it.innerHTML = '<span></span><small></small>';
+      it.firstChild.textContent = p.title; it.lastChild.textContent = p.trackCount ?? '';
+      it.onclick = ev => { ev.stopPropagation(); ymAddToPlaylist(p); };
+      m.appendChild(it);
+    });
+  } catch(err){ plMsg(L('Ошибка: {0}', err.message)); }
+};
+async function ymAddToPlaylist(p){
+  if (!ym.cur) return;
+  const t = ym.cur[0];
+  closePl();
+  try {
+    const diff = JSON.stringify([{ op:'insert', at:0, tracks:[{ id:t.id, albumId:t.albumId }] }]);
+    await ymApi('/users/' + ym.uid + '/playlists/' + p.kind + '/change-relative',
+      { method:'POST', form:{ diff, revision: String(p.revision) } });
+    toast(L('Добавлено в «{0}»', p.title));
+  } catch(e){ toast(L('Ошибка: {0}', e.message)); log('Яндекс Музыка: ' + e.message); }
+}
+document.addEventListener('click', e => { if (!$('plMenu').hidden && !e.target.closest('.plwrap')) closePl(); });
 // лайк, поставленный в самом приложении Яндекса, подтянется при возврате на вкладку
 document.addEventListener('visibilitychange', async () => {
   if (document.hidden || !ymReady() || !ym.cur) return;
@@ -1073,7 +1166,7 @@ $('ymSave').onclick = async () => {
 };
 $('ymLogout').onclick = () => {
   ym.token = ''; ym.uid = null; store.set('ym-token', ''); $('ymToken').value = '';
-  $('btnLike').hidden = true; $('ymHint').textContent = L('Не настроено'); ymStatus(L('Отключено'));
+  $('ymBtns').hidden = true; closePl(); $('ymHint').textContent = L('Не настроено'); ymStatus(L('Отключено'));
 };
 ymInit().catch(() => {});
 
@@ -1249,7 +1342,9 @@ document.addEventListener('keydown', e => {
   const k = e.key;
   if (k === 'f' || k === 'F' || k === 'а' || k === 'А'){ e.preventDefault(); toggleFull(); return; }
   if (k === 'l' || k === 'L' || k === 'д' || k === 'Д'){ e.preventDefault(); toggleLog(); return; }
-  if ((k === 'h' || k === 'H' || k === 'р' || k === 'Р') && !$('btnLike').hidden){ e.preventDefault(); $('btnLike').click(); return; }
+  if ((k === 'h' || k === 'H' || k === 'р' || k === 'Р') && !$('ymBtns').hidden){ e.preventDefault(); $('btnLike').click(); return; }
+  if ((k === 'j' || k === 'J' || k === 'о' || k === 'О') && !$('ymBtns').hidden){ e.preventDefault(); $('btnDislike').click(); return; }
+  if (k === 'Escape' && !$('plMenu').hidden){ closePl(); return; }
   if (k === 'Escape' && $('logPanel').classList.contains('open')){ $('logPanel').classList.remove('open'); return; }
   if (!live) return;
   if (k === ' ' && t.tagName !== 'BUTTON'){ e.preventDefault(); $('btnPlay').click(); }
