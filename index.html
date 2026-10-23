@@ -421,10 +421,10 @@ kbd{font:600 10.5px var(--mono);color:var(--text);background:var(--panel2);borde
   <div class="panel modal-box">
     <div class="ph"><b>YM</b>Яндекс Музыка<span class="grow"></span><button class="ghost" id="ymClose">Закрыть</button></div>
     <ol class="steps">
-      <li>Создай посредник на Cloudflare Workers по инструкции в README и вставь его адрес.</li>
+      <li>Посредник уже указан — менять его нужно, только если у тебя свой (см. README).</li>
       <li>Получи токен по ссылке <a id="ymTokenLink" target="_blank" rel="noopener">oauth.yandex.ru</a>: войди в аккаунт, и в адресной строке появится <code>access_token=…</code> — скопируй значение до знака <code>&amp;</code>.</li>
     </ol>
-    <label class="fld"><span>Адрес посредника</span><input type="text" id="ymWorker" placeholder="https://xm4-ym.имя.workers.dev" autocomplete="off" spellcheck="false"></label>
+    <label class="fld"><span>Адрес посредника</span><input type="text" id="ymWorker" placeholder="https://xm4-ym.evonextus.workers.dev" autocomplete="off" spellcheck="false"></label>
     <label class="fld"><span>Токен</span><input type="password" id="ymToken" placeholder="y0_…" autocomplete="off" spellcheck="false"></label>
     <div class="row"><button class="btn-acc" id="ymSave">Сохранить и проверить</button><button id="ymLogout">Отключить</button></div>
     <div class="ymstat" id="ymStat"></div>
@@ -465,10 +465,10 @@ const EN = {
   'Полосы сброшены':'Bands reset', 'Обновляю':'Refreshing', 'Полный экран недоступен':'Full screen unavailable',
   'Яндекс Музыка':'Yandex Music', 'Лайки текущего трека':'Likes for the current track', 'Настроить':'Set up', 'лайк':'like',
   'Лайк в Яндекс Музыке (H)':'Like on Yandex Music (H)', 'Адрес посредника':'Proxy URL', 'Токен':'Token',
-  'Сохранить и проверить':'Save and test', 'Создай посредник на Cloudflare Workers по инструкции в README и вставь его адрес.':'Create a Cloudflare Workers proxy as described in the README and paste its URL.',
+  'Сохранить и проверить':'Save and test', 'Посредник уже указан — менять его нужно, только если у тебя свой (см. README).':'The proxy is already set — change it only if you run your own (see README).',
   'Токен хранится только в этом браузере и уходит лишь в твой посредник и Яндекс. Аудио не используется: только поиск трека и лайки.':'The token is stored only in this browser and is sent only to your proxy and Yandex. No audio is accessed: only track search and likes.',
   'Подключено к аккаунту {0}':'Connected to account {0}', 'Подключено: {0}':'Connected: {0}', 'Не настроено':'Not set up', 'Проверяю…':'Checking…',
-  'Ошибка: {0}':'Error: {0}', 'Заполни оба поля':'Fill in both fields', 'Трек не найден в Яндекс Музыке':'Track not found on Yandex Music',
+  'Ошибка: {0}':'Error: {0}', 'Вставь токен':'Paste the token', 'Трек не найден в Яндекс Музыке':'Track not found on Yandex Music',
   'Получи токен по ссылке':'Get a token at', ': войди в аккаунт, и в адресной строке появится':': sign in, and the address bar will show',
   'Не рекомендовать (J)':"Don't recommend (J)", 'не рекомендовать':"don't recommend", 'Добавить в плейлист':'Add to playlist',
   'Трек больше не будет рекомендоваться':'Track will no longer be recommended', 'Рекомендации трека возвращены':'Track recommendations restored',
@@ -1011,7 +1011,9 @@ function checkBattery(level, charging){
 // Только метаданные: поиск трека по названию/исполнителю и лайки. Запросы идут через свой посредник на Cloudflare Workers.
 const YM_CLIENT = '23cabbbdc6cd418abb4b39c32c41195d';
 $('ymTokenLink').href = 'https://oauth.yandex.ru/authorize?response_type=token&client_id=' + YM_CLIENT;
-const ym = { worker: (store.get('ym-worker') || '').replace(/\/+$/,''), token: store.get('ym-token') || '',
+// общий посредник проекта; свой можно указать в настройках
+const YM_DEFAULT_WORKER = 'https://xm4-ym.evonextus.workers.dev';
+const ym = { worker: (store.get('ym-worker') || YM_DEFAULT_WORKER).replace(/\/+$/,''), token: store.get('ym-token') || '',
              uid: null, login: '', liked: new Set(), disliked: new Set(), likesAt: 0, cache: new Map(), cur: null, key: '', pls: null };
 async function ymApi(path, opts = {}){
   const r = await fetch(ym.worker + path, {
@@ -1246,9 +1248,12 @@ $('ymModal').onclick = e => { if (e.target === $('ymModal')) $('ymModal').hidden
 $('ymSave').onclick = async () => {
   let w = $('ymWorker').value.trim().replace(/\/+$/,''), t = $('ymToken').value.trim();
   const m = t.match(/access_token=([^&]+)/); if (m) t = m[1];           // если вставили весь адрес
-  if (w && !/^https?:\/\//.test(w)) w = 'https://' + w;
-  if (!w || !t){ ymStatus(L('Заполни оба поля'), 'bad'); return; }
-  ym.worker = w; ym.token = t; store.set('ym-worker', w); store.set('ym-token', t);
+  if (!w) w = YM_DEFAULT_WORKER;                                       // пустое поле — общий посредник
+  if (!/^https?:\/\//.test(w)) w = 'https://' + w;
+  if (!t){ ymStatus(L('Вставь токен'), 'bad'); return; }
+  ym.worker = w; ym.token = t;
+  store.set('ym-worker', w === YM_DEFAULT_WORKER ? '' : w);             // общий адрес не запоминаем — сможем его сменить
+  store.set('ym-token', t);
   ymStatus(L('Проверяю…'));
   try { await ymInit(); ymStatus(L('Подключено к аккаунту {0}', ym.login), 'ok'); }
   catch(e){ ymStatus(L('Ошибка: {0}', e.message), 'bad'); }

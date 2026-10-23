@@ -1,0 +1,8 @@
+// Настройки для Cloudflare Workers Builds: при каждом коммите в main Cloudflare сам выкладывает worker.js.
+// Имя должно совпадать с именем воркера в Cloudflare.
+{
+  "name": "xm4-ym",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true
+}
